@@ -253,6 +253,26 @@ with col10:
         ax.plot(daily_count.index, daily_count.values, label="Daily", alpha=0.4)
         ax.plot(rolling.index, rolling.values, label="7-day rolling avg")
 
+# ---------- Felt reports ----------
+st.subheader("Top 10 Most-Felt Earthquakes")
+felt_df = filtered[["place", "magnitude", "felt"]].copy()
+felt_df["felt"] = pd.to_numeric(felt_df["felt"], errors="coerce")
+felt_df["magnitude"] = pd.to_numeric(felt_df["magnitude"], errors="coerce")
+felt_df = felt_df.dropna(subset=["felt"])
+felt_df = felt_df[felt_df["felt"] > 0]
+
+if felt_df.empty:
+    st.info("No felt-report data available for the current filters.")
+else:
+    felt_top = felt_df.sort_values("felt", ascending=False).head(10).copy()
+    felt_top["label"] = felt_top.apply(
+        lambda r: f"{r['place']} (M{r['magnitude']:.1f})" if pd.notna(r["magnitude"]) else f"{r['place']} (M N/A)",
+        axis=1,
+    )
+    felt_top = felt_top.iloc[::-1]  # largest appears at top of horizontal bar chart
+    felt_series = pd.Series(felt_top["felt"].values, index=felt_top["label"].values)
+    st.bar_chart(felt_series, horizontal=True, height=CONFIG["chart_height_medium"])
+
 # ---------- Recent significant earthquakes ----------
 st.subheader("Recent Significant Earthquakes")
 top_n = st.slider("Rows to show", min_value=5, max_value=10, value=10, step=1, key="significant_top_n")
