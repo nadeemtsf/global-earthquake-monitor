@@ -34,10 +34,22 @@ def _prepare_map_data(df: pd.DataFrame) -> pd.DataFrame:
     # Radius scaled by magnitude (min 3 000 m, grows exponentially)
     df["radius"] = df["magnitude"].apply(lambda m: max(3000, 2 ** (m - 1) * 2000))
 
+    # Highlight tsunami advisories with a brighter border and thicker stroke
+    if "tsunami" in df.columns:
+        df["tsunami"] = pd.to_numeric(df["tsunami"], errors="coerce").fillna(0).astype(int)
+    else:
+        df["tsunami"] = 0
+    df["line_r"] = df["tsunami"].apply(lambda t: 56 if t == 1 else 255).astype(int)
+    df["line_g"] = df["tsunami"].apply(lambda t: 189 if t == 1 else 255).astype(int)
+    df["line_b"] = df["tsunami"].apply(lambda t: 248 if t == 1 else 255).astype(int)
+    df["line_a"] = df["tsunami"].apply(lambda t: 255 if t == 1 else 80).astype(int)
+    df["line_width"] = df["tsunami"].apply(lambda t: 3 if t == 1 else 1).astype(int)
+
     # Human-readable strings for the tooltip
     df["time_str"] = df["main_time"].dt.strftime("%Y-%m-%d %H:%M UTC").fillna("N/A")
     df["depth_display"] = df["depth_km"].round(1).fillna("N/A").astype(str) + " km"
     df["mag_display"] = df["magnitude"].round(1).astype(str)
+    df["tsunami_display"] = df["tsunami"].map({1: "Yes", 0: "No"}).fillna("No")
 
     return df
 
@@ -69,8 +81,9 @@ def render_earthquake_map(df: pd.DataFrame, max_points: int = 200):
     map_data = map_df[[
         "latitude", "longitude", "radius",
         "color_r", "color_g", "color_b", "color_a",
+        "line_r", "line_g", "line_b", "line_a", "line_width",
         "place", "mag_display", "depth_display", "time_str",
-        "country", "alert_level"
+        "country", "alert_level", "tsunami_display"
     ]].copy()
 
     # Ensure native types (float, int, str) - pandas often keeps numpy types even in to_dict
@@ -79,8 +92,10 @@ def render_earthquake_map(df: pd.DataFrame, max_points: int = 200):
     
     for col in ["color_r", "color_g", "color_b", "color_a"]:
         map_data[col] = map_data[col].astype(int)
+    for col in ["line_r", "line_g", "line_b", "line_a", "line_width"]:
+        map_data[col] = map_data[col].astype(int)
 
-    for col in ["place", "mag_display", "depth_display", "time_str", "country", "alert_level"]:
+    for col in ["place", "mag_display", "depth_display", "time_str", "country", "alert_level", "tsunami_display"]:
         map_data[col] = map_data[col].astype(str)
 
     # Convert to list of dicts for pydeck
@@ -95,7 +110,8 @@ def render_earthquake_map(df: pd.DataFrame, max_points: int = 200):
         pickable=True,
         opacity=0.7,
         stroked=True,
-        get_line_color=[255, 255, 255, 80],
+        get_line_color=["line_r", "line_g", "line_b", "line_a"],
+        get_line_width="line_width",
         line_width_min_pixels=1,
     )
 
@@ -118,6 +134,7 @@ def render_earthquake_map(df: pd.DataFrame, max_points: int = 200):
                     <tr><td style="color: #94a3b8;">Time</td><td>{time_str}</td></tr>
                     <tr><td style="color: #94a3b8;">Country</td><td>{country}</td></tr>
                     <tr><td style="color: #94a3b8;">Alert</td><td>{alert_level}</td></tr>
+                    <tr><td style="color: #94a3b8;">Tsunami</td><td>{tsunami_display}</td></tr>
                 </table>
             </div>
         """,

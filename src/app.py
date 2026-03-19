@@ -1,9 +1,8 @@
 import os
-from html import escape
-
 import pandas as pd
 import streamlit as st
 
+from html import escape
 from datetime import datetime, timezone, timedelta
 from data import CONFIG, load_data_with_cache
 from chart_utils import dark_chart, DARK_FG
@@ -67,6 +66,7 @@ all_countries = sorted([x for x in df["country"].dropna().unique().tolist() if x
 
 selected_levels = st.sidebar.multiselect("Alert level", all_levels, default=all_levels)
 selected_countries = st.sidebar.multiselect("Country / Region", all_countries, default=all_countries)
+tsunami_only = st.sidebar.checkbox("Show only tsunami advisories", value=False)
 
 max_points = st.sidebar.slider("Map points", CONFIG["map_points_min"], CONFIG["map_points_max"], CONFIG["map_points_default"], CONFIG["map_points_min"])
 
@@ -77,6 +77,14 @@ mask = (
     & df["date_utc"].between(start_d, end_d)
 )
 filtered = df.loc[mask].copy()
+
+if "tsunami" in filtered.columns:
+    filtered["tsunami"] = pd.to_numeric(filtered["tsunami"], errors="coerce").fillna(0).astype(int)
+else:
+    filtered["tsunami"] = 0
+
+if tsunami_only:
+    filtered = filtered[filtered["tsunami"] == 1]
 
 if filtered.empty:
     st.warning("No records match your filters.")
@@ -101,6 +109,8 @@ m1, m2, m3 = st.sidebar.columns(3)
 m1.metric("Quakes", int(len(filtered)))
 m2.metric("Avg Mag", round(float(avg_mag), 1) if pd.notna(avg_mag) else "N/A")
 m3.metric("Max Mag", round(float(max_mag), 1) if pd.notna(max_mag) else "N/A")
+tsunami_count = int((filtered["tsunami"] == 1).sum()) if "tsunami" in filtered.columns else 0
+st.sidebar.metric("Tsunami Advisories", tsunami_count)
 
 # Pre-compute daily aggregates
 daily_count = filtered.groupby("date_utc").size()
