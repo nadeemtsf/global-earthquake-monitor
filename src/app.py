@@ -1,4 +1,5 @@
 import os
+import time
 import pandas as pd
 import streamlit as st
 
@@ -33,6 +34,7 @@ min_mag = st.sidebar.slider(
     value=CONFIG["default_min_magnitude"],
     step=0.5,
 )
+auto_refresh = st.sidebar.checkbox("Auto-refresh every 10 min", value=False)
 
 # Fetch data using the selected date range and magnitude
 from_str = start_d.strftime("%Y-%m-%d")
@@ -45,6 +47,8 @@ with st.spinner("Fetching earthquake data..."):
         min_magnitude=min_mag,
         source=source_label,
     )
+last_updated_utc = datetime.now(timezone.utc)
+st.sidebar.caption(f"Last updated: {last_updated_utc.strftime('%Y-%m-%d %H:%M UTC')}")
 if warn:
     st.warning(warn)
 
@@ -359,3 +363,8 @@ else:
 # ---------- Interactive Map (pydeck) ----------
 st.subheader("Earthquake Map (hover for details)")
 render_earthquake_map(filtered, max_points=max_points)
+
+# Timed auto-refresh (10 min) for live dashboard mode
+if auto_refresh:
+    time.sleep(600)
+    st.rerun()
