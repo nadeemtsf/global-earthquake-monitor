@@ -1,4 +1,5 @@
 import os
+from html import escape
 
 import pandas as pd
 import streamlit as st
@@ -241,6 +242,83 @@ with col10:
     with dark_chart("Daily earthquakes (smoothed)", "Date (UTC)", "Count", figsize=CONFIG["figsize_wide"], rotate_x=True, legend="") as (fig, ax):
         ax.plot(daily_count.index, daily_count.values, label="Daily", alpha=0.4)
         ax.plot(rolling.index, rolling.values, label="7-day rolling avg")
+
+# ---------- Recent significant earthquakes ----------
+st.subheader("Recent Significant Earthquakes")
+top_n = st.slider("Rows to show", min_value=5, max_value=10, value=10, step=1, key="significant_top_n")
+
+sig_df = filtered[["place", "magnitude", "depth_km", "main_time", "link"]].copy()
+sig_df["magnitude"] = pd.to_numeric(sig_df["magnitude"], errors="coerce")
+sig_df["depth_km"] = pd.to_numeric(sig_df["depth_km"], errors="coerce")
+sig_df = sig_df.dropna(subset=["magnitude"]).sort_values("magnitude", ascending=False).head(top_n)
+
+if sig_df.empty:
+    st.info("No significant earthquakes available for the current filters.")
+else:
+    sig_df["time_utc"] = pd.to_datetime(sig_df["main_time"], utc=True, errors="coerce").dt.strftime("%Y-%m-%d %H:%M UTC")
+    sig_df["magnitude_display"] = sig_df["magnitude"].map(lambda x: f"{x:.1f}" if pd.notna(x) else "N/A")
+    sig_df["depth_display"] = sig_df["depth_km"].map(lambda x: f"{x:.1f} km" if pd.notna(x) else "N/A")
+
+    table_rows = []
+    for _, row in sig_df.iterrows():
+        place = escape(str(row.get("place") or "Unknown location"))
+        mag = escape(str(row.get("magnitude_display") or "N/A"))
+        depth = escape(str(row.get("depth_display") or "N/A"))
+        time_utc = escape(str(row.get("time_utc") or "N/A"))
+        link = row.get("link") or ""
+        link_html = (
+            f'<a href="{escape(str(link), quote=True)}" target="_blank" rel="noopener noreferrer">USGS Event</a>'
+            if link
+            else "N/A"
+        )
+        table_rows.append(
+            f"<tr><td>{place}</td><td>{mag}</td><td>{depth}</td><td>{time_utc}</td><td>{link_html}</td></tr>"
+        )
+
+    st.markdown(
+        """
+        <style>
+        .sig-table-wrap { overflow-x: auto; margin-bottom: 0.25rem; }
+        .sig-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            border-radius: 8px;
+        }
+        .sig-table th, .sig-table td {
+            text-align: left;
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+            font-size: 0.9rem;
+        }
+        .sig-table thead th {
+            color: #e2e8f0;
+            background: rgba(30, 41, 59, 0.6);
+            font-weight: 600;
+        }
+        .sig-table tbody tr:hover {
+            background: rgba(59, 130, 246, 0.12);
+        }
+        .sig-table a {
+            color: #60a5fa;
+            text-decoration: none;
+        }
+        .sig-table a:hover {
+            text-decoration: underline;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        (
+            '<div class="sig-table-wrap"><table class="sig-table">'
+            "<thead><tr><th>Place</th><th>Magnitude</th><th>Depth</th><th>Time</th><th>Link</th></tr></thead>"
+            f"<tbody>{''.join(table_rows)}</tbody>"
+            "</table></div>"
+        ),
+        unsafe_allow_html=True,
+    )
 
 # ---------- Interactive Map (pydeck) ----------
 st.subheader("Earthquake Map (hover for details)")
