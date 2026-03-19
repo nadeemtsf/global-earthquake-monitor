@@ -4,3 +4,4 @@ requests
 matplotlib
 altair
 pydeck
+pytest
