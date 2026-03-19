@@ -141,3 +141,41 @@ def test_load_data_with_cache_falls_back_to_cached_csv(monkeypatch, tmp_path):
     assert "using cached data" in (warn or "").lower()
     assert "source" in df.columns
 
+
+def test_geojson_to_df_empty_features():
+    empty_data = {"type": "FeatureCollection", "features": []}
+    df = data.geojson_to_df(empty_data)
+    assert df.empty
+    # normalize_schema is called, so columns should be present
+    assert "source" in df.columns
+    assert df.iloc[0:0]["source"].empty
+
+
+def test_geojson_to_df_missing_properties():
+    minimal_data = {
+        "features": [{
+            "properties": {"mag": 5.0, "place": "Test Place", "time": 1700000000000},
+            "geometry": {"coordinates": [0, 0]}
+        }]
+    }
+    df = data.geojson_to_df(minimal_data)
+    assert len(df) == 1
+    assert df.iloc[0]["magnitude"] == 5.0
+    assert pd.isna(df.iloc[0]["alert_score"])
+    assert df.iloc[0]["tsunami"] == 0
+
+
+def test_load_data_by_source_both_partial_failure(monkeypatch):
+    def mock_usgs(*args, **kwargs):
+        return pd.DataFrame([{"magnitude": 5.0, "source": "USGS", "main_time": pd.to_datetime("now")}]), None
+
+    def mock_gdacs(*args, **kwargs):
+        return pd.DataFrame(), "⚠️ GDACS fetch failed"
+
+    monkeypatch.setattr(data, "_load_usgs_with_cache", mock_usgs)
+    monkeypatch.setattr(data, "_load_gdacs_with_cache", mock_gdacs)
+
+    df, warn = data.load_data_by_source(source="BOTH")
+    assert len(df) == 1
+    assert df.iloc[0]["source"] == "USGS"
+    assert "GDACS fetch failed" in warn
