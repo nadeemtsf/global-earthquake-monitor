@@ -24,7 +24,7 @@ Testing and deploying the application is easiest using **Docker**:
 
 1. **Clone and Build**
    ```bash
-   git clone https://github.com/NadimBaboun/global-earthquake-monitor.git
+   git clone https://github.com/nadeemtsf/global-earthquake-monitor.git
    cd global-earthquake-monitor
    docker-compose up --build
    ```

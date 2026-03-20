@@ -28,3 +28,4 @@ desktop.ini
 .cache/
 _test_*.py
 create_issues.py
+create_issues2.py
