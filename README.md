@@ -53,9 +53,13 @@ Testing and deploying the application is easiest using **Docker**:
 - **Historical data access** — Select any date range (days, months, or years back).
 - **Network Resilience** — Automatic fallback to a persistent **local `.cache/` directory** if upstream APIs are unreachable.
 
-### 📥 XML Export for XSLT
-- Raw **QuakeML XML** and GDACS XML files are exported on every fetch.
-- **Download XML** buttons in the sidebar for one-click export, ideal for downstream XSLT transformation pipelines.
+### 📥 Export & Reporting
+- Raw **QuakeML XML** and GDACS XML files are exported on every fetch (ideal for downstream XSLT pipelines).
+- **Situation Reports** — One-click generation of professional PDF summaries containing KPIs, top events, and natively-rendered visualizations.
+
+### 🤖 Seismic AI Assistant
+- Integrated AI chat assistant (powered by Google Gemini) floating on the dashboard.
+- Context-aware responses that can analyze the currently filtered earthquake data and answer specific questions about ongoing seismic events.
 
 ### 🧩 Data Science & Processing
 - **Schema Normalization** — Consistent data schema across differing providers (GeoJSON vs RSS/XML).
@@ -70,29 +74,7 @@ Testing and deploying the application is easiest using **Docker**:
 
 ---
 
-## 🗂️ Project Structure
 
-```text
-📁 global-earthquake-monitor/
-├── src/                  # Python source code
-│   ├── providers/        # [NEW] Data provider implementations (USGS, GDACS)
-│   ├── app.py            # Streamlit UI Entry Point
-│   ├── components.py     # [NEW] Reusable UI components (CSS, Tables)
-│   ├── data.py           # Core data orchestrator (Parallel fetching, Cache)
-│   ├── data_utils.py     # Schema mapping & cleaning
-│   ├── map_utils.py      # Pydeck mapping & styling
-│   └── chart_utils.py    # Plotly theme & template configuration
-├── tests/                # [NEW] Pytest suite covering GDACS, Map Utils, and Core Data
-├── docs/                 # Documentation & architectural diagrams
-├── xml/                  # XSLT transformation files
-├── .cache/               # Local persistent cache (ignored by git)
-├── Dockerfile            # [NEW] Container configuration
-├── docker-compose.yml    # [NEW] Orchestration & Volume setup
-├── requirements.txt      # Project dependencies
-└── README.md
-```
-
----
 
 ## 🌐 Data Sources
 
@@ -124,6 +106,8 @@ Testing and deploying the application is easiest using **Docker**:
 - **Time-series analysis** (daily aggregates, rolling averages, cumulative sums)
 - **Exploratory data analysis** (distributions, depth vs magnitude scatter, geographic patterns)
 - **Interactive visualization** (filters, multi-chart dashboards, map rendering)
+- **Automated reporting** (dynamic PDF generation and visual rendering)
+- **LLM Integration** (contextual data analysis using Generative AI)
 
 ---
 
