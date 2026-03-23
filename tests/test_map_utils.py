@@ -6,8 +6,31 @@ import pytest
 # Add 'src' to sys.path for local imports
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from utils.map_utils import _prepare_map_data
+from utils.map_utils import _prepare_map_data, filter_by_time
 from constants import ALERT_RGBA_COLORS, DEFAULT_ALERT_RGBA
+
+
+def test_filter_by_time(sample_map_df):
+    # Test with a time that should include only the first event
+    t1 = pd.to_datetime("2024-03-15T12:30:00Z")
+    filtered1 = filter_by_time(sample_map_df, t1)
+    assert len(filtered1) == 1
+    assert filtered1.iloc[0]["magnitude"] == 7.5
+
+    # Test with a time that should include all events
+    t2 = pd.to_datetime("2024-03-15T15:00:00Z")
+    filtered2 = filter_by_time(sample_map_df, t2)
+    assert len(filtered2) == 3
+
+    # Test with exact match of second event
+    t3 = pd.to_datetime("2024-03-15T13:00:00Z")
+    filtered3 = filter_by_time(sample_map_df, t3)
+    assert len(filtered3) == 2
+
+    # Test empty dataframe
+    empty_df = pd.DataFrame()
+    filtered_empty = filter_by_time(empty_df, t3)
+    assert len(filtered_empty) == 0
 
 
 @pytest.fixture

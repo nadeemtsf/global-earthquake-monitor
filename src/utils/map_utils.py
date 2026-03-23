@@ -12,6 +12,18 @@ import streamlit as st
 from constants import ALERT_RGBA_COLORS, DEFAULT_ALERT_RGBA
 
 
+def filter_by_time(df: pd.DataFrame, current_time: pd.Timestamp) -> pd.DataFrame:
+    """Filter earthquakes occurring on or before the current_time."""
+    if df.empty or "main_time" not in df.columns:
+        return df
+    
+    # Ensure current_time is a pandas Timestamp for comparison
+    ts = pd.to_datetime(current_time)
+    
+    # Filter and return the data
+    return df[pd.to_datetime(df["main_time"]) <= ts].copy()
+
+
 def _prepare_map_data(df: pd.DataFrame) -> pd.DataFrame:
     """Add colour, radius, and display-friendly columns for the map layer."""
     df = df.copy()
@@ -54,7 +66,13 @@ def _prepare_map_data(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def render_earthquake_map(df: pd.DataFrame, max_points: int = 200) -> None:
+def render_earthquake_map(
+    df: pd.DataFrame, 
+    max_points: int = 200, 
+    center_lat: float | None = None, 
+    center_lon: float | None = None,
+    sort_by: str = "magnitude"
+) -> None:
     """
     Render an interactive pydeck earthquake map in Streamlit.
 
@@ -64,12 +82,18 @@ def render_earthquake_map(df: pd.DataFrame, max_points: int = 200) -> None:
                                 longitude, magnitude, alert_level, depth_km,
                                 main_time, place, country columns).
     max_points : int            Maximum number of markers to display.
+    center_lat : float | None   Optional fixed center latitude for viewport.
+    center_lon : float | None   Optional fixed center longitude for viewport.
+    sort_by    : str            Sort the points before truncating ('magnitude' or 'time').
     """
-    map_df = (
-        df.dropna(subset=["latitude", "longitude", "magnitude"])
-        .sort_values("magnitude", ascending=False)
-        .head(max_points)
-    ).copy()
+    map_df = df.dropna(subset=["latitude", "longitude", "magnitude"]).copy()
+    
+    if sort_by == "time" and "main_time" in map_df.columns:
+        map_df = map_df.sort_values("main_time", ascending=False)
+    else:
+        map_df = map_df.sort_values("magnitude", ascending=False)
+        
+    map_df = map_df.head(max_points)
 
     if map_df.empty:
         st.info("No earthquake data to display on map.")
@@ -127,6 +151,7 @@ def render_earthquake_map(df: pd.DataFrame, max_points: int = 200) -> None:
 
     layer = pdk.Layer(
         "ScatterplotLayer",
+        id="earthquake-layer",
         data=map_data_dicts,
         get_position=["longitude", "latitude"],
         get_radius="radius",
@@ -139,9 +164,12 @@ def render_earthquake_map(df: pd.DataFrame, max_points: int = 200) -> None:
         line_width_min_pixels=1,
     )
 
+    c_lat = center_lat if center_lat is not None else map_df["latitude"].mean()
+    c_lon = center_lon if center_lon is not None else map_df["longitude"].mean()
+
     view_state = pdk.ViewState(
-        latitude=map_df["latitude"].mean(),
-        longitude=map_df["longitude"].mean(),
+        latitude=c_lat,
+        longitude=c_lon,
         zoom=1.5,
         pitch=0,
     )
@@ -176,6 +204,7 @@ def render_earthquake_map(df: pd.DataFrame, max_points: int = 200) -> None:
             layers=[layer],
             initial_view_state=view_state,
             tooltip=tooltip,
-            map_style="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+            map_provider="carto",
+            map_style=pdk.map_styles.DARK,
         )
     )
