@@ -3,7 +3,6 @@ import re
 import pandas as pd
 import google.generativeai as genai
 import logging
-import streamlit as st
 from typing import List, Dict
 
 logger = logging.getLogger(__name__)
@@ -21,17 +20,9 @@ MODEL_POOL = [
 
 
 class SeismicAI:
-    def __init__(self) -> None:
-        """Initialize the AI engine with API keys from secrets or environment."""
-        # Prefer st.secrets, fallback to os.getenv
-        self.api_key: str | None = None
-        try:
-            self.api_key = st.secrets.get("GOOGLE_API_KEY")
-        except Exception:
-            pass
-
-        if not self.api_key:
-            self.api_key = os.getenv("GOOGLE_API_KEY")
+    def __init__(self, api_key: str | None = None) -> None:
+        """Initialize the AI engine with an explicit key or environment fallback."""
+        self.api_key = api_key or os.getenv("GOOGLE_API_KEY")
 
         if not self.api_key:
             logger.error("GOOGLE_API_KEY not found in environment.")

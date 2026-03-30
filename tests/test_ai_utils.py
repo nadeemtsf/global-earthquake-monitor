@@ -3,6 +3,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 from pathlib import Path
 import sys
+import os
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -35,15 +36,8 @@ def mock_genai():
         }
 
 
-@pytest.fixture
-def mock_st_secrets():
-    with patch("streamlit.secrets") as mock_secrets:
-        mock_secrets.get.return_value = "fake-key"
-        yield mock_secrets
-
-
-def test_seismic_ai_init(mock_genai, mock_st_secrets):
-    ai = ai_utils.SeismicAI()
+def test_seismic_ai_init_with_explicit_key(mock_genai):
+    ai = ai_utils.SeismicAI(api_key="fake-key")
     assert ai.api_key == "fake-key"
     assert ai.is_available() is True
     mock_genai["configure"].assert_called_with(api_key="fake-key")
@@ -79,18 +73,16 @@ def test_generate_context_with_data():
     assert "Orange" in context
 
 
-def test_get_ai_response_success(mock_genai, mock_st_secrets):
-    ai = ai_utils.SeismicAI()
+def test_get_ai_response_success(mock_genai):
+    ai = ai_utils.SeismicAI(api_key="fake-key")
     response = ai.get_ai_response("What happened?", "Context here", [])
     assert response == "Hello from AI"
     mock_genai["instance"].generate_content.assert_called()
 
 
 def test_get_ai_response_not_available():
-    with patch("streamlit.secrets") as mock_secrets:
-        mock_secrets.get.return_value = None
-        with patch.dict("os.environ", {}, clear=True):
-            ai = ai_utils.SeismicAI()
-            assert ai.is_available() is False
-            response = ai.get_ai_response("Hi", "Context", [])
-            assert "AI service is not configured" in response
+    with patch.dict(os.environ, {}, clear=True):
+        ai = ai_utils.SeismicAI()
+        assert ai.is_available() is False
+        response = ai.get_ai_response("Hi", "Context", [])
+        assert "AI service is not configured" in response
