@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:geo="http://www.w3.org/1999/wgs84_pos#" xmlns:gdacs="http://www.gdacs.org">
+  <channel>
+    <title>GDACS sample</title>
+    <item>
+      <guid>gdacs_2026_0002</guid>
+      <title>M 5.2 - 10km NW of Exampletown</title>
+      <pubDate>Mon, 30 Mar 2026 12:00:00 GMT</pubDate>
+      <link>https://example.gdacs/gdacs_2026_0002</link>
+      <gdacs:magnitude>5.2</gdacs:magnitude>
+      <gdacs:depth>10</gdacs:depth>
+      <geo:lat>34.321</geo:lat>
+      <geo:long>-120.123</geo:long>
+      <gdacs:location>10km NW of Exampletown</gdacs:location>
+      <gdacs:country>Exampleland</gdacs:country>
+      <gdacs:alertlevel>Green</gdacs:alertlevel>
+      <gdacs:alertscore>12</gdacs:alertscore>
+      <gdacs:tsunami_alert>0</gdacs:tsunami_alert>
+    </item>
+  </channel>
+</rss>

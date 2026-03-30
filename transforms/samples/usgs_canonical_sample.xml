@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<earthquake-dashboard-data>
+  <event>
+    <id>usgs_2026_0001</id>
+    <title>M 6.5 - 50km SE of Sampleville</title>
+    <main_time>2026-03-30T12:34:56Z</main_time>
+    <magnitude>6.5</magnitude>
+    <magnitude_type>Mw</magnitude_type>
+    <depth_km>15</depth_km>
+    <latitude>12.345</latitude>
+    <longitude>-98.765</longitude>
+    <place>M 6.5 - 50km SE of Sampleville</place>
+    <country>Unknown</country>
+    <alert_level>Unknown</alert_level>
+    <alert_score>6.5</alert_score>
+    <tsunami>0</tsunami>
+    <felt>12</felt>
+    <status>earthquake</status>
+    <source>USGS</source>
+    <link>usgs_2026_0001</link>
+  </event>
+</earthquake-dashboard-data>
