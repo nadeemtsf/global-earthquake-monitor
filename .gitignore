@@ -31,3 +31,12 @@ migration-issue-plan.md
 
 # Streamlit secrets
 .streamlit/secrets.toml
+
+# Backend — never commit real env files
+backend/.env
+backend/.cache/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
