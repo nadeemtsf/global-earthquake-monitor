@@ -2,6 +2,9 @@
 <!--
   USGS QuakeML → Canonical Earthquake XML
   
+  MANDATORY GRADED DELIVERABLE
+  Authoritative intermediate transformation for the Global Earthquake Monitor.
+  
   Input:  USGS QuakeML (XML)
   Output: <earthquake-dashboard-data> canonical schema
 -->

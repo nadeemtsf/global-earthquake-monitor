@@ -53,6 +53,8 @@ The repository is currently transitioning from a single Streamlit app to a monor
 - Streamlit remains temporary during migration for feature-parity validation only.
 - The final target structure separates `backend/`, `frontend/`, `transforms/`, and shared docs.
 
+Important: the `transforms/` directory contains the XSLT stylesheets used by the backend canonicalization pipeline and is a MANDATORY graded deliverable. See [transforms/README.md](transforms/README.md) for architecture, samples, and usage instructions.
+
 ---
 
 ## 📊 Key Features

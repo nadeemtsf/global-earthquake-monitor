@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<q:quakeml xmlns:q="http://quakeml.org/xmlns/quakeml/1.2"
+           xmlns:bed="http://quakeml.org/xmlns/bed/1.2">
+  <bed:event publicID="usgs_2026_0001">
+    <bed:description>
+      <bed:text>M 6.5 - 50km SE of Sampleville</bed:text>
+    </bed:description>
+    <bed:origin>
+      <bed:time>
+        <bed:value>2026-03-30T12:34:56Z</bed:value>
+      </bed:time>
+      <bed:latitude>
+        <bed:value>12.345</bed:value>
+      </bed:latitude>
+      <bed:longitude>
+        <bed:value>-98.765</bed:value>
+      </bed:longitude>
+      <bed:depth>
+        <bed:value>15000</bed:value>
+      </bed:depth>
+    </bed:origin>
+    <bed:magnitude>
+      <bed:mag>
+        <bed:value>6.5</bed:value>
+      </bed:mag>
+      <bed:type>Mw</bed:type>
+    </bed:magnitude>
+    <bed:felt>12</bed:felt>
+    <bed:type>earthquake</bed:type>
+  </bed:event>
+</q:quakeml>
