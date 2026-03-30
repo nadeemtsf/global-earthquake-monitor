@@ -10,7 +10,6 @@ serializing to JSON.
 from __future__ import annotations
 
 import logging
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
@@ -103,10 +102,14 @@ class XMLPipelineService:
                 # Derive alert level if placeholder
                 alert = get_val("alert_level", "Unknown")
                 if alert == "Unknown" or not alert:
-                    if mag >= 7.0: alert = "Red"
-                    elif mag >= 5.5: alert = "Orange"
-                    elif mag >= 4.0: alert = "Yellow"
-                    else: alert = "Green"
+                    if mag >= 7.0:
+                        alert = "Red"
+                    elif mag >= 5.5:
+                        alert = "Orange"
+                    elif mag >= 4.0:
+                        alert = "Yellow"
+                    else:
+                        alert = "Green"
 
                 events.append(EarthquakeEvent(
                     id=get_val("id"),

@@ -156,9 +156,9 @@ def earthquake_summary(
     # Alert breakdown
     breakdown = {"green": 0, "yellow": 0, "orange": 0, "red": 0, "unknown": 0}
     for e in events:
-        l = e.alert_level.lower()
-        if l in breakdown: 
-            breakdown[l] += 1
+        level_str = e.alert_level.lower()
+        if level_str in breakdown:
+            breakdown[level_str] += 1
         else:
             breakdown["unknown"] += 1
 

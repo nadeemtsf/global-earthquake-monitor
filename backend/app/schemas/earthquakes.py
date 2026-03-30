@@ -55,8 +55,8 @@ class EarthquakeSummary(BaseModel):
     max_magnitude: float = Field(..., description="Highest magnitude in the dataset.")
     tsunami_count: int = Field(..., description="Total number of tsunami advisories.")
     alert_breakdown: AlertLevelBreakdown = Field(..., description="Count of events per alert category.")
-    top_regions: List[Dict[str, int]] = Field(
-        ..., description="Top 5-10 regions by event count."
+    top_regions: List[Dict[str, str | int]] = Field(
+        ..., description="Top 5-10 regions by event count (e.g., [{'region': 'USA', 'count': 10}])."
     )
 
 

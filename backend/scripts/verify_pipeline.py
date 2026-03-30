@@ -1,5 +1,4 @@
 import sys
-import os
 from pathlib import Path
 
 # Add backend to sys.path
@@ -20,7 +19,7 @@ def main():
         print(f"Successfully fetched {len(events)} events from USGS.")
         if events:
             print(f"Top event: {events[0].title} (Mag: {events[0].magnitude})")
-            print(f"Canonical XML saved to: backend/.cache/canonical/usgs_latest.xml")
+            print("Canonical XML saved to: backend/.cache/canonical/usgs_latest.xml")
     except Exception as e:
         print(f"USGS Pipeline failed: {e}")
 
@@ -30,7 +29,7 @@ def main():
         print(f"Successfully fetched {len(events)} events from GDACS.")
         if events:
             print(f"Top event: {events[0].title} (Mag: {events[0].magnitude})")
-            print(f"Canonical XML saved to: backend/.cache/canonical/gdacs_latest.xml")
+            print("Canonical XML saved to: backend/.cache/canonical/gdacs_latest.xml")
     except Exception as e:
         print(f"GDACS Pipeline failed: {e}")
 
