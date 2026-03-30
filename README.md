@@ -94,6 +94,33 @@ Testing and deploying the application is easiest using **Docker**:
 - **Linting**: Enforced code quality with `ruff`.
 - **Testing**: Comprehensive `pytest` suite for core utilities and data parsers.
 - **Persistence**: Decoupled cache from system temp to ensure network resilience across reboots.
+- **Secret Hygiene**: Tokens and API keys must be provided through environment variables or platform secrets, never committed to the repository.
+
+---
+
+## 🔐 Secrets and Issue Automation
+
+This repository must not store plaintext credentials in tracked files.
+
+- Use environment variables or deployment secrets for all tokens and API keys.
+- `GOOGLE_API_KEY` is read from Streamlit secrets or the process environment.
+- `create_issues.py` reads `GITHUB_TOKEN` from the environment when syncing GitHub issues.
+
+Example PowerShell usage:
+
+```powershell
+$env:GITHUB_TOKEN = "<your_github_token>"
+python create_issues.py
+```
+
+Example Bash usage:
+
+```bash
+export GITHUB_TOKEN="<your_github_token>"
+python create_issues.py
+```
+
+If a token was ever committed, revoke it immediately and replace it with a new one before continuing development.
 
 ---
 
