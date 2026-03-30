@@ -45,6 +45,16 @@ Testing and deploying the application is easiest using **Docker**:
 
 ---
 
+## 🧭 Migration Architecture
+
+The repository is currently transitioning from a single Streamlit app to a monorepo with a FastAPI backend and React frontend.
+
+- Target structure and migration boundaries are documented in [docs/MIGRATION_ARCHITECTURE.md](docs/MIGRATION_ARCHITECTURE.md).
+- Streamlit remains temporary during migration for feature-parity validation only.
+- The final target structure separates `backend/`, `frontend/`, `transforms/`, and shared docs.
+
+---
+
 ## 📊 Key Features
 
 ### 📡 Multi-Provider Data Pipeline
