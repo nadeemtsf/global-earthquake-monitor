@@ -140,7 +140,9 @@ def test_load_data_with_cache_falls_back_to_cached_csv(monkeypatch, tmp_path):
     def raise_request_error(*args, **kwargs):
         raise requests.RequestException("network down")
 
-    monkeypatch.setattr(data, "fetch_usgs_geojson", raise_request_error)
+    # Patch the actual service layer function, not the wrapper
+    import services.earthquake_service
+    monkeypatch.setattr(services.earthquake_service, "fetch_usgs_geojson", raise_request_error)
 
     df, warn = data.load_data_by_source(
         start_date="2025-01-01", end_date="2025-01-02", min_mag=2.5
