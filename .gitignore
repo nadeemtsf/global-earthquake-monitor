@@ -27,6 +27,7 @@ desktop.ini
 # Project-specific
 .cache/
 _test_*.py
+migration-issue-plan.md
 
 # Streamlit secrets
 .streamlit/secrets.toml
