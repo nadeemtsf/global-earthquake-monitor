@@ -29,10 +29,12 @@ from fastapi import APIRouter, Depends, Query
 from app.core.config import Settings
 from app.core.dependencies import get_settings
 from app.schemas.earthquakes import EarthquakeListResponse, EarthquakeSummary
+from app.services.xml_pipeline import XMLPipelineService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+pipeline = XMLPipelineService()
 
 # ---------------------------------------------------------------------------
 # Type aliases for reusable query param annotations
@@ -68,7 +70,7 @@ DataSource = Annotated[
     description=(
         "Fetch earthquake events from the specified provider within the given date "
         "range and minimum magnitude. Responses are sourced from the canonicalized "
-        "XML/XSLT pipeline. Full implementation lands in issue #08."
+        "XML/XSLT pipeline."
     ),
 )
 def list_earthquakes(
@@ -85,15 +87,32 @@ def list_earthquakes(
         end_date,
         min_magnitude,
     )
-    # Placeholder return matching EarthquakeListResponse shape
+    
+    # Process "BOTH" or single source
+    sources = ["USGS", "GDACS"] if source == "BOTH" else [source]
+    all_events = []
+    
+    for src in sources:
+        events = pipeline.get_earthquakes(
+            source=src,
+            start_date=start_date,
+            end_date=end_date,
+            min_mag=min_magnitude,
+        )
+        all_events.extend(events)
+        
+    # Sort by time descending (newest first)
+    all_events.sort(key=lambda x: x.main_time, reverse=True)
+    
     return {
-        "items": [],
-        "count": 0,
+        "items": all_events,
+        "count": len(all_events),
         "metadata": {
             "source": source,
             "start_date": start_date,
             "end_date": end_date,
             "min_magnitude": min_magnitude,
+            "data_flow": "XML/XSLT -> Pydantic",
         },
     }
 
@@ -115,18 +134,44 @@ def earthquake_summary(
     cfg: Settings = Depends(get_settings),
 ) -> dict:
     logger.info("GET /earthquakes/summary — source=%s", source)
-    # Placeholder return matching EarthquakeSummary shape
+    
+    # Reuse list logic for simplicity in this version
+    # (Future optimizations would calculate stats directly on the canonical XML)
+    response = list_earthquakes(start_date, end_date, min_magnitude, source, cfg)
+    events = response["items"]
+    
+    if not events:
+        return {
+            "total_count": 0,
+            "average_magnitude": 0.0,
+            "max_magnitude": 0.0,
+            "tsunami_count": 0,
+            "alert_breakdown": {"green": 0, "yellow": 0, "orange": 0, "red": 0, "unknown": 0},
+            "top_regions": [],
+        }
+
+    mags = [e.magnitude for e in events]
+    tsunamis = sum(1 for e in events if e.tsunami == 1)
+    
+    # Alert breakdown
+    breakdown = {"green": 0, "yellow": 0, "orange": 0, "red": 0, "unknown": 0}
+    for e in events:
+        level_str = e.alert_level.lower()
+        if level_str in breakdown:
+            breakdown[level_str] += 1
+        else:
+            breakdown["unknown"] += 1
+
+    # Top regions (simplified counts)
+    from collections import Counter
+    regions = Counter(e.country for e in events).most_common(5)
+    top_regions = [{"region": r, "count": c} for r, c in regions]
+
     return {
-        "total_count": 0,
-        "average_magnitude": 0.0,
-        "max_magnitude": 0.0,
-        "tsunami_count": 0,
-        "alert_breakdown": {
-            "green": 0,
-            "yellow": 0,
-            "orange": 0,
-            "red": 0,
-            "unknown": 0,
-        },
-        "top_regions": [],
+        "total_count": len(events),
+        "average_magnitude": sum(mags) / len(mags),
+        "max_magnitude": max(mags),
+        "tsunami_count": tsunamis,
+        "alert_breakdown": breakdown,
+        "top_regions": top_regions,
     }
