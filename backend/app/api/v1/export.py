@@ -57,6 +57,7 @@ DataSource = Annotated[
         "Return XSLT-transformed canonical earthquake XML. "
         "This route must emit the *canonicalized* schema produced by the XSLT "
         "pipeline in transforms/, never the raw upstream QuakeML or RSS XML. "
+        "Fields map to the EarthquakeEvent JSON model. "
         "Full implementation lands in issue #11 / pipeline wired in issue #06."
     ),
     responses={
@@ -92,7 +93,7 @@ def export_xml(
     responses={
         200: {
             "content": {"text/csv": {}},
-            "description": "Earthquake dataset as a CSV download.",
+            "description": "Earthquake dataset as a CSV download. Field names match the EarthquakeEvent schema.",
         }
     },
 )
@@ -117,7 +118,7 @@ def export_csv(
     summary="Export PDF situation report",
     description=(
         "Generate and return a PDF situation report summarising the filtered "
-        "earthquake dataset. Mirrors the existing Streamlit PDF generator."
+        "earthquake dataset. Charts and KPIs match the EarthquakeSummary schema."
     ),
     responses={
         200: {

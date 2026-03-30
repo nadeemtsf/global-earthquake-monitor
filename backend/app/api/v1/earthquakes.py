@@ -25,10 +25,10 @@ import logging
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import JSONResponse
 
 from app.core.config import Settings
 from app.core.dependencies import get_settings
+from app.schemas.earthquakes import EarthquakeListResponse, EarthquakeSummary
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +64,7 @@ DataSource = Annotated[
 @router.get(
     "",
     summary="List earthquake events",
+    response_model=EarthquakeListResponse,
     description=(
         "Fetch earthquake events from the specified provider within the given date "
         "range and minimum magnitude. Responses are sourced from the canonicalized "
@@ -76,7 +77,7 @@ def list_earthquakes(
     min_magnitude: MinMagnitude = 2.5,
     source: DataSource = "USGS",
     cfg: Settings = Depends(get_settings),
-) -> JSONResponse:
+) -> dict:
     logger.info(
         "GET /earthquakes — source=%s start=%s end=%s min_mag=%.1f",
         source,
@@ -84,23 +85,23 @@ def list_earthquakes(
         end_date,
         min_magnitude,
     )
-    return JSONResponse(
-        status_code=501,
-        content={
-            "detail": "Not yet implemented — see issue #08 (Build Core REST Endpoints).",
-            "params": {
-                "source": source,
-                "start_date": start_date,
-                "end_date": end_date,
-                "min_magnitude": min_magnitude,
-            },
+    # Placeholder return matching EarthquakeListResponse shape
+    return {
+        "items": [],
+        "count": 0,
+        "metadata": {
+            "source": source,
+            "start_date": start_date,
+            "end_date": end_date,
+            "min_magnitude": min_magnitude,
         },
-    )
+    }
 
 
 @router.get(
     "/summary",
     summary="Earthquake dataset summary",
+    response_model=EarthquakeSummary,
     description=(
         "Return aggregated statistics (total count, average/max magnitude, "
         "tsunami advisory count) for the filtered earthquake dataset."
@@ -112,11 +113,20 @@ def earthquake_summary(
     min_magnitude: MinMagnitude = 2.5,
     source: DataSource = "USGS",
     cfg: Settings = Depends(get_settings),
-) -> JSONResponse:
+) -> dict:
     logger.info("GET /earthquakes/summary — source=%s", source)
-    return JSONResponse(
-        status_code=501,
-        content={
-            "detail": "Not yet implemented — see issue #08 (Build Core REST Endpoints).",
+    # Placeholder return matching EarthquakeSummary shape
+    return {
+        "total_count": 0,
+        "average_magnitude": 0.0,
+        "max_magnitude": 0.0,
+        "tsunami_count": 0,
+        "alert_breakdown": {
+            "green": 0,
+            "yellow": 0,
+            "orange": 0,
+            "red": 0,
+            "unknown": 0,
         },
-    )
+        "top_regions": [],
+    }
