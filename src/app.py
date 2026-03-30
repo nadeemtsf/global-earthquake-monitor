@@ -29,7 +29,13 @@ inject_custom_css()
 inject_floating_ai_css()
 
 # ---------- AI Setup ----------
-ai = SeismicAI()
+google_api_key = None
+try:
+    google_api_key = st.secrets.get("GOOGLE_API_KEY")
+except Exception:
+    google_api_key = None
+
+ai = SeismicAI(api_key=google_api_key)
 
 # Handle any pending AI-driven updates BEFORE widgets are instantiated
 if "pending_date_update" in st.session_state:
