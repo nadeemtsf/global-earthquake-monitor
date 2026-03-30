@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<earthquake-dashboard-data>
+  <event>
+    <id>gdacs_2026_0002</id>
+    <title>M 5.2 - 10km NW of Exampletown</title>
+    <main_time>2026-03-30T12:00:00Z</main_time>
+    <magnitude>5.2</magnitude>
+    <magnitude_type></magnitude_type>
+    <depth_km>10</depth_km>
+    <latitude>34.321</latitude>
+    <longitude>-120.123</longitude>
+    <place>10km NW of Exampletown</place>
+    <country>Exampleland</country>
+    <alert_level>Green</alert_level>
+    <alert_score>12</alert_score>
+    <tsunami>0</tsunami>
+    <felt></felt>
+    <status></status>
+    <source>GDACS</source>
+    <link>https://example.gdacs/gdacs_2026_0002</link>
+    <severity_text></severity_text>
+    <population_text></population_text>
+  </event>
+</earthquake-dashboard-data>
