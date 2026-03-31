@@ -1,0 +1,30 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.7, pytest-8.4.2, pluggy-1.6.0 -- C:\Users\thebe\AppData\Local\Programs\Python\Python311\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\thebe\Gtihub Repos\Mine\global-earthquake-monitor\backend
+configfile: pyproject.toml
+plugins: anyio-4.12.1, langsmith-0.7.22, asyncio-1.3.0, timeout-2.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 19 items
+
+tests/test_security.py::TestApiKeyDevBypass::test_health_allowed_without_key PASSED [  5%]
+tests/test_security.py::TestApiKeyDevBypass::test_route_allowed_without_key_when_disabled PASSED [ 10%]
+tests/test_security.py::TestApiKeyEnforced::test_missing_key_returns_401 PASSED [ 15%]
+tests/test_security.py::TestApiKeyEnforced::test_wrong_key_returns_403 PASSED [ 21%]
+tests/test_security.py::TestApiKeyEnforced::test_correct_key_passes PASSED [ 26%]
+tests/test_security.py::TestApiKeyEnforced::test_health_never_enforced PASSED [ 31%]
+tests/test_security.py::TestRateLimiting::test_ratelimit_headers_present PASSED [ 36%]
+tests/test_security.py::TestRateLimiting::test_ratelimit_headers_on_api PASSED [ 42%]
+tests/test_security.py::TestRateLimiting::test_requests_within_limit_succeed PASSED [ 47%]
+tests/test_security.py::TestRateLimiting::test_exceeding_limit_returns_429 PASSED [ 52%]
+tests/test_security.py::TestRateLimiting::test_health_exempt_from_rate_limit PASSED [ 57%]
+tests/test_security.py::TestRateLimiting::test_rate_limiting_disabled PASSED [ 63%]
+tests/test_security.py::TestCorsHeaders::test_cors_preflight_returns_allow_headers PASSED [ 68%]
+tests/test_security.py::TestCorsHeaders::test_cors_exposes_ratelimit_headers PASSED [ 73%]
+tests/test_security.py::TestProcessTimeHeader::test_process_time_header_on_health PASSED [ 78%]
+tests/test_security.py::TestProcessTimeHeader::test_process_time_is_numeric PASSED [ 84%]
+tests/test_security.py::TestSecurityDependency::test_constant_time_equal_same PASSED [ 89%]
+tests/test_security.py::TestSecurityDependency::test_constant_time_equal_different PASSED [ 94%]
+tests/test_security.py::TestSecurityDependency::test_constant_time_equal_empty PASSED [100%]
+
+============================= 19 passed in 8.07s ==============================

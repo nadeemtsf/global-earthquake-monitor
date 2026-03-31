@@ -19,8 +19,9 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.core.config import settings
+from app.core.config import Settings, settings
 from app.core.logging import configure_logging
+from app.core.rate_limit import RateLimitMiddleware
 from app.api.v1 import router as api_v1_router
 from app.api.health import router as health_router
 
@@ -53,19 +54,29 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:  # noqa: ARG001
 # ---------------------------------------------------------------------------
 
 
-def create_app() -> FastAPI:
-    """Construct and return the fully configured FastAPI application."""
+def create_app(
+    cfg: Settings | None = None,
+) -> FastAPI:
+    """Construct and return the fully configured FastAPI application.
+
+    Args:
+        cfg: Optional settings override.  When None the module-level
+             ``settings`` singleton is used.  Pass a custom ``Settings``
+             instance in tests to control security and rate-limit behaviour
+             without altering the global singleton.
+    """
+    effective_cfg = cfg if cfg is not None else settings
     application = FastAPI(
-        title=settings.PROJECT_NAME,
+        title=effective_cfg.PROJECT_NAME,
         description=(
             "REST API for the Global Earthquake Monitor. "
             "Provides earthquake data from USGS and GDACS via an XML/XSLT pipeline, "
             "AI-powered chat analysis, and structured data export."
         ),
-        version=settings.API_VERSION,
-        docs_url="/docs" if settings.ENABLE_DOCS else None,
-        redoc_url="/redoc" if settings.ENABLE_DOCS else None,
-        openapi_url="/openapi.json" if settings.ENABLE_DOCS else None,
+        version=effective_cfg.API_VERSION,
+        docs_url="/docs" if effective_cfg.ENABLE_DOCS else None,
+        redoc_url="/redoc" if effective_cfg.ENABLE_DOCS else None,
+        openapi_url="/openapi.json" if effective_cfg.ENABLE_DOCS else None,
         lifespan=lifespan,
     )
 
@@ -74,21 +85,48 @@ def create_app() -> FastAPI:
     # ------------------------------------------------------------------
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.CORS_ALLOWED_ORIGINS,
+        allow_origins=effective_cfg.CORS_ALLOWED_ORIGINS,
         allow_credentials=True,
         allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["*"],
+        # Explicit header allowlist: includes the X-API-Key used for auth
+        allow_headers=[
+            "Content-Type",
+            "Authorization",
+            "X-API-Key",
+            "X-Requested-With",
+            "Accept",
+            "Origin",
+        ],
+        expose_headers=[
+            "X-Process-Time-Ms",
+            "X-RateLimit-Limit",
+            "X-RateLimit-Remaining",
+            "X-RateLimit-Window",
+        ],
     )
 
     # ------------------------------------------------------------------
-    # Request timing middleware (lightweight, no third-party dep)
+    # Rate limiting (issue #09) — must be added *after* CORS so that
+    # OPTIONS pre-flights are handled by CORS before the limiter sees them.
+    # ------------------------------------------------------------------
+    application.add_middleware(RateLimitMiddleware, settings=effective_cfg)
+
+    # ------------------------------------------------------------------
+    # Request timing + structured access logging middleware
     # ------------------------------------------------------------------
     @application.middleware("http")
-    async def add_process_time_header(request: Request, call_next):  # type: ignore[no-untyped-def]
+    async def log_and_time_requests(request: Request, call_next):  # type: ignore[no-untyped-def]
         start = time.perf_counter()
         response = await call_next(request)
         elapsed_ms = (time.perf_counter() - start) * 1000
         response.headers["X-Process-Time-Ms"] = f"{elapsed_ms:.2f}"
+        logger.info(
+            "%s %s → %s (%.2f ms)",
+            request.method,
+            request.url.path,
+            response.status_code,
+            elapsed_ms,
+        )
         return response
 
     # ------------------------------------------------------------------

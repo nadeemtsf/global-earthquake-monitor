@@ -6,6 +6,26 @@ loaded by python-dotenv). Pydantic's BaseSettings handles parsing, type
 coercion, and validation. Sensitive values must never be committed — see
 .env.example for the required keys.
 
+Security settings added in issue #09
+-------------------------------------
+``API_KEY``
+    Shared secret that callers must supply via the ``X-API-Key`` header.  Leave
+    blank to disable without also setting ``API_KEY_ENABLED=false``.
+
+``API_KEY_ENABLED``
+    Set to ``False`` (the default) to skip key checking entirely.  Recommended
+    for local React development so Vite can call the API without extra config.
+    Set to ``True`` in staging/production.
+
+``RATE_LIMIT_ENABLED``
+    Toggle the sliding-window rate limiter on/off.
+
+``RATE_LIMIT_REQUESTS``
+    Maximum allowed requests per ``RATE_LIMIT_WINDOW_SECONDS``.
+
+``RATE_LIMIT_WINDOW_SECONDS``
+    Length of the rate-limit sliding window in seconds.
+
 Usage:
     from app.core.config import settings
 
@@ -115,6 +135,54 @@ class Settings(BaseSettings):
             "Path to the top-level transforms/ directory that contains the XSLT "
             "stylesheets used in the XML canonicalization pipeline."
         ),
+    )
+
+    # ------------------------------------------------------------------
+    # Security — API key authentication (issue #09)
+    # ------------------------------------------------------------------
+
+    API_KEY: str | None = Field(
+        None,
+        description=(
+            "Shared API key that clients must supply via the X-API-Key header. "
+            "Only enforced when API_KEY_ENABLED=true."
+        ),
+    )
+    API_KEY_ENABLED: bool = Field(
+        False,
+        description=(
+            "Enable X-API-Key enforcement on public endpoints.  "
+            "Defaults to False so local React development (Vite) works without "
+            "extra configuration.  Set True in staging and production."
+        ),
+    )
+
+    # ------------------------------------------------------------------
+    # Rate limiting (issue #09)
+    # ------------------------------------------------------------------
+
+    RATE_LIMIT_ENABLED: bool = Field(
+        True,
+        description="Enable sliding-window rate limiting on public API endpoints.",
+    )
+    RATE_LIMIT_REQUESTS: int = Field(
+        60,
+        ge=1,
+        description="Maximum requests allowed within RATE_LIMIT_WINDOW_SECONDS.",
+    )
+    RATE_LIMIT_WINDOW_SECONDS: int = Field(
+        60,
+        ge=1,
+        description="Duration of the rate-limit sliding window in seconds.",
+    )
+
+    # ------------------------------------------------------------------
+    # Logging
+    # ------------------------------------------------------------------
+
+    LOG_LEVEL: str = Field(
+        "INFO",
+        description="Root logging level: DEBUG | INFO | WARNING | ERROR | CRITICAL.",
     )
 
 
