@@ -34,6 +34,24 @@ class ChatRequest(BaseModel):
             "from its internal caches."
         ),
     )
+    # Optional dataset filters — provided so the backend can recreate the
+    # exact dataset slice the frontend is currently viewing.
+    start_date: Optional[str] = Field(
+        None,
+        description="ISO date string (YYYY-MM-DD) to filter the dataset start.",
+    )
+    end_date: Optional[str] = Field(
+        None,
+        description="ISO date string (YYYY-MM-DD) to filter the dataset end.",
+    )
+    min_magnitude: Optional[float] = Field(
+        None,
+        description="Optional minimum magnitude filter to scope context generation.",
+    )
+    source: Optional[str] = Field(
+        None,
+        description="Data provider to query for context: USGS, GDACS, or Both.",
+    )
 
 
 class SuggestedAction(BaseModel):
