@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   BarChart,
   Bar,
@@ -53,9 +54,13 @@ function Spinner() {
   )
 }
 
+const PAGE_SIZE = 20
+
 export default function AnalyticsPage() {
   const { data: summary, isLoading: summaryLoading, isError: summaryError } = useSummary()
   const { data: events, isLoading: eventsLoading, isError: eventsError } = useEarthquakes(1000)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [currentPage, setCurrentPage] = useState(0)
 
   const isLoading = summaryLoading || eventsLoading
   const isError = summaryError || eventsError
@@ -71,6 +76,13 @@ export default function AnalyticsPage() {
 
   const top10 = [...events].sort((a, b) => b.magnitude - a.magnitude).slice(0, 10)
   const magHistogram = buildMagnitudeHistogram(events)
+
+  // Search/grid
+  const filteredEvents = events.filter((ev) =>
+    ev.place.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+  const totalPages = Math.ceil(filteredEvents.length / PAGE_SIZE)
+  const pageEvents = filteredEvents.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE)
 
   const alertPieData = [
     { name: 'Green', value: summary.alert_breakdown.green, color: ALERT_COLORS.green },
@@ -177,6 +189,88 @@ export default function AnalyticsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Search/Grid */}
+      <div className="bg-gray-800 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-300">All Events</h3>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value)
+              setCurrentPage(0)
+            }}
+            placeholder="Search by place..."
+            className="bg-gray-700 text-white text-sm rounded px-3 py-1.5 border border-gray-600 focus:outline-none focus:border-blue-500 placeholder-gray-400 w-56"
+          />
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-gray-400 border-b border-gray-700">
+                <th className="text-left py-2 pr-4">Place</th>
+                <th className="text-right py-2 pr-4">Magnitude</th>
+                <th className="text-right py-2 pr-4">Depth (km)</th>
+                <th className="text-right py-2 pr-4">Time (UTC)</th>
+                <th className="text-right py-2 pr-4">Alert</th>
+                <th className="text-right py-2">Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pageEvents.map((ev) => (
+                <tr key={ev.id} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
+                  <td className="py-1.5 pr-4 text-gray-200 max-w-xs truncate">{ev.place}</td>
+                  <td className="py-1.5 pr-4 text-right font-semibold text-orange-400">{ev.magnitude.toFixed(1)}</td>
+                  <td className="py-1.5 pr-4 text-right text-gray-300">{ev.depth_km.toFixed(1)}</td>
+                  <td className="py-1.5 pr-4 text-right text-gray-400 text-xs whitespace-nowrap">
+                    {new Date(ev.main_time).toUTCString().replace(' GMT', ' UTC')}
+                  </td>
+                  <td className="py-1.5 pr-4 text-right">
+                    <span
+                      className="px-2 py-0.5 rounded text-xs font-medium"
+                      style={{ backgroundColor: ALERT_COLORS[ev.alert_level.toLowerCase()] + '33', color: ALERT_COLORS[ev.alert_level.toLowerCase()] }}
+                    >
+                      {ev.alert_level}
+                    </span>
+                  </td>
+                  <td className="py-1.5 text-right text-gray-400 text-xs">{ev.source}</td>
+                </tr>
+              ))}
+              {pageEvents.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-gray-500">
+                    No events match your search.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {/* Pagination */}
+        <div className="flex items-center justify-between mt-3 text-sm text-gray-400">
+          <span>
+            Showing {filteredEvents.length === 0 ? 0 : currentPage * PAGE_SIZE + 1}–
+            {Math.min((currentPage + 1) * PAGE_SIZE, filteredEvents.length)} of {filteredEvents.length}
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+              disabled={currentPage === 0}
+              className="px-3 py-1 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 rounded transition-colors text-xs"
+            >
+              Prev
+            </button>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={currentPage >= totalPages - 1}
+              className="px-3 py-1 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 rounded transition-colors text-xs"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
     </div>

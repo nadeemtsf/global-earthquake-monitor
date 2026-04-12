@@ -3,6 +3,8 @@ import FilterSidebar from './components/layout/FilterSidebar'
 import AnalyticsPage from './pages/AnalyticsPage'
 import MapPage from './pages/MapPage'
 import TimelinePage from './pages/TimelinePage'
+import TimeSeriesPage from './pages/TimeSeriesPage'
+import ChatPage from './pages/ChatPage'
 
 const tabs = [
   { label: 'Analytics', to: '/' },
@@ -11,14 +13,6 @@ const tabs = [
   { label: 'Time Series', to: '/timeseries' },
   { label: 'Chat', to: '/chat' },
 ]
-
-function Placeholder({ name }: { name: string }) {
-  return (
-    <div className="flex items-center justify-center h-full text-gray-400 text-xl">
-      {name} — coming soon
-    </div>
-  )
-}
 
 export default function App() {
   return (
@@ -50,8 +44,8 @@ export default function App() {
             <Route path="/" element={<AnalyticsPage />} />
             <Route path="/map" element={<MapPage />} />
             <Route path="/timeline" element={<TimelinePage />} />
-            <Route path="/timeseries" element={<Placeholder name="Time Series" />} />
-            <Route path="/chat" element={<Placeholder name="Chat" />} />
+            <Route path="/timeseries" element={<TimeSeriesPage />} />
+            <Route path="/chat" element={<ChatPage />} />
           </Routes>
         </main>
       </div>
