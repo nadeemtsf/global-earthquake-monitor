@@ -61,9 +61,20 @@ class EarthquakeSummary(BaseModel):
 
 
 class EarthquakeListResponse(BaseModel):
-    """Standard wrapper for bulk earthquake listings."""
+    """Standard wrapper for bulk earthquake listings with pagination support.
+
+    ``total`` is the full pre-pagination count; ``count`` is the number of
+    items returned in this page.  When ``total == count`` no further pages
+    exist.  Server-side pagination is activated once a dataset exceeds ~500
+    events — below that threshold the entire result fits comfortably in a
+    single browser render cycle without degrading UX.
+    """
+
     items: List[EarthquakeEvent]
     count: int
+    total: int = Field(..., description="Total events matching filters before pagination.")
+    offset: int = Field(0, description="Zero-based index of the first returned item.")
+    limit: int = Field(100, description="Maximum items returned in this page.")
     metadata: Dict[str, str | float | None] = Field(
-        default_factory=dict, description="Query-specific metadata (offsets, filters applied)."
+        default_factory=dict, description="Query-specific metadata (filters applied)."
     )
