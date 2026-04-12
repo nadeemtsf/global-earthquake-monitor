@@ -1,6 +1,7 @@
 import { Routes, Route, NavLink } from 'react-router-dom'
 import FilterSidebar from './components/layout/FilterSidebar'
 import AnalyticsPage from './pages/AnalyticsPage'
+import MapPage from './pages/MapPage'
 
 const tabs = [
   { label: 'Analytics', to: '/' },
@@ -46,7 +47,7 @@ export default function App() {
         <main className="flex-1 overflow-auto p-4">
           <Routes>
             <Route path="/" element={<AnalyticsPage />} />
-            <Route path="/map" element={<Placeholder name="Map" />} />
+            <Route path="/map" element={<MapPage />} />
             <Route path="/timeline" element={<Placeholder name="Timeline" />} />
             <Route path="/timeseries" element={<Placeholder name="Time Series" />} />
             <Route path="/chat" element={<Placeholder name="Chat" />} />
