@@ -2,6 +2,7 @@ import { Routes, Route, NavLink } from 'react-router-dom'
 import FilterSidebar from './components/layout/FilterSidebar'
 import AnalyticsPage from './pages/AnalyticsPage'
 import MapPage from './pages/MapPage'
+import TimelinePage from './pages/TimelinePage'
 
 const tabs = [
   { label: 'Analytics', to: '/' },
@@ -48,7 +49,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<AnalyticsPage />} />
             <Route path="/map" element={<MapPage />} />
-            <Route path="/timeline" element={<Placeholder name="Timeline" />} />
+            <Route path="/timeline" element={<TimelinePage />} />
             <Route path="/timeseries" element={<Placeholder name="Time Series" />} />
             <Route path="/chat" element={<Placeholder name="Chat" />} />
           </Routes>
