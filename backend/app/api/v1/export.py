@@ -30,18 +30,16 @@ import io
 
 import pandas as pd
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import Response
 
 from app.core.config import Settings
 from app.core.dependencies import get_settings
+from app.services.pdf_report import generate_situation_report
+from app.services.xml_pipeline import XMLPipelineService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-# Services
-from app.services.xml_pipeline import XMLPipelineService
-from app.services.pdf_report import generate_situation_report
 
 # Reusable query param annotations (mirrors earthquakes.py for consistency)
 StartDate = Annotated[str | None, Query(description="Start date (YYYY-MM-DD, UTC).")]
