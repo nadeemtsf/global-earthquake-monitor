@@ -83,7 +83,6 @@ export default function AnalyticsPage() {
   )
   const totalPages = Math.ceil(filteredEvents.length / PAGE_SIZE)
   const pageEvents = filteredEvents.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE)
-
   const alertPieData = [
     { name: 'Green', value: summary.alert_breakdown.green, color: ALERT_COLORS.green },
     { name: 'Yellow', value: summary.alert_breakdown.yellow, color: ALERT_COLORS.yellow },
