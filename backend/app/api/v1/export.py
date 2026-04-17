@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import logging
 from typing import Annotated, Literal
-from datetime import datetime
+from datetime import datetime, timezone
 
 import io
 
@@ -202,7 +202,7 @@ def export_pdf(
     }
 
     # Generate PDF bytes
-    pdf_bytes = generate_situation_report(events, filters, datetime.utcnow())
+    pdf_bytes = generate_situation_report(events, filters, datetime.now(timezone.utc))
 
     headers = {"Content-Disposition": "attachment; filename=Situation_Report.pdf"}
     return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
