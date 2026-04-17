@@ -56,6 +56,18 @@ DataSource = Annotated[
     Literal["USGS", "GDACS", "BOTH"],
     Query(description="Data provider. USGS (GeoJSON/QuakeML), GDACS (RSS/XML), or BOTH."),
 ]
+Limit = Annotated[
+    int,
+    Query(ge=1, le=500, description="Maximum events to return (1–500). Default 100."),
+]
+Offset = Annotated[
+    int,
+    Query(ge=0, description="Zero-based index of the first event to return."),
+]
+Search = Annotated[
+    str | None,
+    Query(description="Case-insensitive substring search on the 'place' field."),
+]
 
 
 # ---------------------------------------------------------------------------
@@ -69,8 +81,11 @@ DataSource = Annotated[
     response_model=EarthquakeListResponse,
     description=(
         "Fetch earthquake events from the specified provider within the given date "
-        "range and minimum magnitude. Responses are sourced from the canonicalized "
-        "XML/XSLT pipeline."
+        "range and minimum magnitude. Supports server-side pagination (limit/offset), "
+        "alert-level filtering, country filtering, and place-name search. "
+        "Responses are sourced from the canonicalized XML/XSLT pipeline. "
+        "Server-side pagination is recommended for datasets exceeding ~500 events "
+        "where loading the full result into the browser would degrade render performance."
     ),
 )
 def list_earthquakes(
@@ -78,41 +93,63 @@ def list_earthquakes(
     end_date: EndDate = None,
     min_magnitude: MinMagnitude = 2.5,
     source: DataSource = "USGS",
+    limit: Limit = 100,
+    offset: Offset = 0,
+    search: Search = None,
+    alert_levels: list[str] | None = Query(None, description="Filter by alert level (repeatable): Green, Yellow, Orange, Red."),
+    countries: list[str] | None = Query(None, description="Filter by country name (repeatable)."),
     cfg: Settings = Depends(get_settings),
 ) -> dict:
     logger.info(
-        "GET /earthquakes — source=%s start=%s end=%s min_mag=%.1f",
-        source,
-        start_date,
-        end_date,
-        min_magnitude,
+        "GET /earthquakes — source=%s start=%s end=%s min_mag=%.1f limit=%d offset=%d",
+        source, start_date, end_date, min_magnitude, limit, offset,
     )
-    
-    # Process "BOTH" or single source
+
+    # Fetch from upstream via XML/XSLT pipeline
     sources = ["USGS", "GDACS"] if source == "BOTH" else [source]
     all_events = []
-    
     for src in sources:
-        events = pipeline.get_earthquakes(
-            source=src,
-            start_date=start_date,
-            end_date=end_date,
-            min_mag=min_magnitude,
+        all_events.extend(
+            pipeline.get_earthquakes(
+                source=src,
+                start_date=start_date,
+                end_date=end_date,
+                min_mag=min_magnitude,
+            )
         )
-        all_events.extend(events)
-        
-    # Sort by time descending (newest first)
+
+    # Sort newest first
     all_events.sort(key=lambda x: x.main_time, reverse=True)
-    
+
+    # Server-side filters
+    if alert_levels:
+        normalized = {a.lower() for a in alert_levels}
+        all_events = [e for e in all_events if e.alert_level.lower() in normalized]
+
+    if countries:
+        normalized_c = {c.lower() for c in countries}
+        all_events = [e for e in all_events if e.country.lower() in normalized_c]
+
+    if search:
+        needle = search.lower()
+        all_events = [e for e in all_events if needle in e.place.lower()]
+
+    total = len(all_events)
+    page = all_events[offset: offset + limit]
+
     return {
-        "items": all_events,
-        "count": len(all_events),
+        "items": page,
+        "count": len(page),
+        "total": total,
+        "offset": offset,
+        "limit": limit,
         "metadata": {
             "source": source,
             "start_date": start_date,
             "end_date": end_date,
             "min_magnitude": min_magnitude,
             "data_flow": "XML/XSLT -> Pydantic",
+            "server_side_threshold": "500",
         },
     }
 
@@ -134,10 +171,20 @@ def earthquake_summary(
     cfg: Settings = Depends(get_settings),
 ) -> dict:
     logger.info("GET /earthquakes/summary — source=%s", source)
-    
-    # Reuse list logic for simplicity in this version
-    # (Future optimizations would calculate stats directly on the canonical XML)
-    response = list_earthquakes(start_date, end_date, min_magnitude, source, cfg)
+
+    # Fetch the full unfiltered page to compute accurate summary stats
+    response = list_earthquakes(
+        start_date=start_date,
+        end_date=end_date,
+        min_magnitude=min_magnitude,
+        source=source,
+        limit=500,
+        offset=0,
+        search=None,
+        alert_levels=None,
+        countries=None,
+        cfg=cfg,
+    )
     events = response["items"]
     
     if not events:

@@ -24,12 +24,18 @@ from __future__ import annotations
 
 import logging
 from typing import Annotated, Literal
+from datetime import datetime, timezone
 
+import io
+
+import pandas as pd
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response
 
 from app.core.config import Settings
 from app.core.dependencies import get_settings
+from app.services.pdf_report import generate_situation_report
+from app.services.xml_pipeline import XMLPipelineService
 
 logger = logging.getLogger(__name__)
 
@@ -73,17 +79,37 @@ def export_xml(
     min_magnitude: MinMagnitude = 2.5,
     source: DataSource = "USGS",
     cfg: Settings = Depends(get_settings),
-) -> JSONResponse:
+) -> Response:
     logger.info("GET /export/xml — source=%s", source)
-    return JSONResponse(
-        status_code=501,
-        content={
-            "detail": (
-                "Not yet implemented — XML/XSLT pipeline lands in issue #06; "
-                "export endpoint wired in issue #11."
-            ),
-        },
-    )
+    pipeline = XMLPipelineService()
+    params = {
+        "starttime": start_date,
+        "endtime": end_date,
+        "minmagnitude": min_magnitude,
+        "orderby": "time",
+    }
+    if source == "BOTH":
+        # Fetch both sources and concatenate their canonical XML event nodes
+        from lxml import etree  # noqa: PLC0415
+
+        root = etree.Element("EarthquakeDataset")
+        for src in ("USGS", "GDACS"):
+            try:
+                raw_xml = pipeline.fetch_raw_xml(src, dict(params))
+                canonical_xml = pipeline.apply_xslt(raw_xml, src)
+                src_root = etree.fromstring(canonical_xml.encode("utf-8"))
+                for node in src_root:
+                    root.append(node)
+            except Exception as exc:
+                logger.warning("XML fetch failed for source %s: %s", src, exc)
+        canonical_bytes = etree.tostring(root, pretty_print=True, xml_declaration=True, encoding="utf-8")
+    else:
+        raw_xml = pipeline.fetch_raw_xml(source, params)
+        canonical_xml = pipeline.apply_xslt(raw_xml, source)
+        canonical_bytes = canonical_xml.encode("utf-8")
+
+    headers = {"Content-Disposition": "attachment; filename=earthquakes_canonical.xml"}
+    return Response(content=canonical_bytes, media_type="application/xml", headers=headers)
 
 
 @router.get(
@@ -103,14 +129,24 @@ def export_csv(
     min_magnitude: MinMagnitude = 2.5,
     source: DataSource = "USGS",
     cfg: Settings = Depends(get_settings),
-) -> JSONResponse:
+) -> Response:
     logger.info("GET /export/csv — source=%s", source)
-    return JSONResponse(
-        status_code=501,
-        content={
-            "detail": "Not yet implemented — see issue #11 (Port Export/Report Routes).",
-        },
-    )
+    pipeline = XMLPipelineService()
+    events: list = []
+    if source == "BOTH":
+        events.extend(pipeline.get_earthquakes("USGS", start_date, end_date, min_magnitude))
+        events.extend(pipeline.get_earthquakes("GDACS", start_date, end_date, min_magnitude))
+    else:
+        events = pipeline.get_earthquakes(source, start_date, end_date, min_magnitude)
+
+    rows = [e.model_dump() if hasattr(e, "model_dump") else e.dict() for e in events]
+    df = pd.DataFrame(rows)
+    buf = io.StringIO()
+    df.to_csv(buf, index=False)
+    csv_bytes = buf.getvalue().encode("utf-8")
+
+    headers = {"Content-Disposition": "attachment; filename=earthquakes.csv"}
+    return Response(content=csv_bytes, media_type="text/csv", headers=headers)
 
 
 @router.get(
@@ -132,12 +168,41 @@ def export_pdf(
     end_date: EndDate = None,
     min_magnitude: MinMagnitude = 2.5,
     source: DataSource = "USGS",
+    alerts: list[str] | None = Query(None, description="Filter by alert level; repeatable"),
+    countries: list[str] | None = Query(None, description="Filter by country; repeatable"),
     cfg: Settings = Depends(get_settings),
-) -> JSONResponse:
-    logger.info("GET /export/pdf — source=%s", source)
-    return JSONResponse(
-        status_code=501,
-        content={
-            "detail": "Not yet implemented — see issue #11 (Port Export/Report Routes).",
-        },
+) -> Response:
+    logger.info(
+        "GET /export/pdf — source=%s start=%s end=%s min_mag=%s alerts=%s countries=%s",
+        source,
+        start_date,
+        end_date,
+        min_magnitude,
+        alerts,
+        countries,
     )
+
+    # Fetch events via the XML pipeline service. Support BOTH by merging sources.
+    pipeline = XMLPipelineService()
+    events: list = []
+    if source == "BOTH":
+        events.extend(pipeline.get_earthquakes("USGS", start_date, end_date, min_magnitude))
+        events.extend(pipeline.get_earthquakes("GDACS", start_date, end_date, min_magnitude))
+    else:
+        events = pipeline.get_earthquakes(source, start_date, end_date, min_magnitude)
+
+    # Build filters dict for the PDF generator
+    filters = {
+        "source": source,
+        "start_date": start_date,
+        "end_date": end_date,
+        "min_mag": min_magnitude,
+        "alerts": alerts or [],
+        "countries": countries or [],
+    }
+
+    # Generate PDF bytes
+    pdf_bytes = generate_situation_report(events, filters, datetime.now(timezone.utc))
+
+    headers = {"Content-Disposition": "attachment; filename=Situation_Report.pdf"}
+    return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
