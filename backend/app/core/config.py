@@ -130,7 +130,7 @@ class Settings(BaseSettings):
         description="Default minimum magnitude for earthquake queries.",
     )
     XSLT_DIR: str = Field(
-        "transforms",
+        "../transforms",
         description=(
             "Path to the top-level transforms/ directory that contains the XSLT "
             "stylesheets used in the XML canonicalization pipeline."
