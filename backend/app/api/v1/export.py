@@ -24,24 +24,22 @@ from __future__ import annotations
 
 import logging
 from typing import Annotated, Literal
-from datetime import datetime
+from datetime import datetime, timezone
 
 import io
 
 import pandas as pd
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import Response
 
 from app.core.config import Settings
 from app.core.dependencies import get_settings
+from app.services.pdf_report import generate_situation_report
+from app.services.xml_pipeline import XMLPipelineService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-# Services
-from app.services.xml_pipeline import XMLPipelineService
-from app.services.pdf_report import generate_situation_report
 
 # Reusable query param annotations (mirrors earthquakes.py for consistency)
 StartDate = Annotated[str | None, Query(description="Start date (YYYY-MM-DD, UTC).")]
@@ -204,7 +202,7 @@ def export_pdf(
     }
 
     # Generate PDF bytes
-    pdf_bytes = generate_situation_report(events, filters, datetime.utcnow())
+    pdf_bytes = generate_situation_report(events, filters, datetime.now(timezone.utc))
 
     headers = {"Content-Disposition": "attachment; filename=Situation_Report.pdf"}
     return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
