@@ -47,7 +47,7 @@ function Spinner() {
 }
 
 export default function TimeSeriesPage() {
-  const { data: events, isLoading, isError } = useEarthquakes(2000)
+  const { data: events, isLoading, isError } = useEarthquakes(500)
 
   if (isLoading) return <Spinner />
   if (isError || !events) {
