@@ -16,6 +16,13 @@ export interface EarthquakeParams {
   offset?: number
 }
 
+interface PaginatedResponse {
+  items: EarthquakeEvent[]
+  total: number
+  offset: number
+  limit: number
+}
+
 export async function fetchEarthquakes(params: EarthquakeParams): Promise<EarthquakeEvent[]> {
   const { alert_levels, countries, start_date, end_date, ...rest } = params
   const queryParams: Record<string, unknown> = { ...rest }
@@ -25,8 +32,8 @@ export async function fetchEarthquakes(params: EarthquakeParams): Promise<Earthq
   if (alert_levels && alert_levels.length > 0) queryParams['alert_levels[]'] = alert_levels
   if (countries && countries.length > 0) queryParams['countries[]'] = countries
 
-  const response = await api.get<EarthquakeEvent[]>('/api/v1/earthquakes', { params: queryParams })
-  return response.data
+  const response = await api.get<PaginatedResponse>('/api/v1/earthquakes', { params: queryParams })
+  return response.data.items
 }
 
 export async function fetchSummary(params: Omit<EarthquakeParams, 'limit' | 'offset'>): Promise<EarthquakeSummary> {
