@@ -58,7 +58,7 @@ const PAGE_SIZE = 20
 
 export default function AnalyticsPage() {
   const { data: summary, isLoading: summaryLoading, isError: summaryError } = useSummary()
-  const { data: events, isLoading: eventsLoading, isError: eventsError } = useEarthquakes(1000)
+  const { data: events, isLoading: eventsLoading, isError: eventsError } = useEarthquakes(500)
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(0)
 

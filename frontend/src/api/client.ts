@@ -3,6 +3,19 @@ import type { EarthquakeEvent, EarthquakeSummary } from '../types/earthquake'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? '',
+  paramsSerializer: {
+    serialize: (params) => {
+      const sp = new URLSearchParams()
+      for (const [key, value] of Object.entries(params)) {
+        if (Array.isArray(value)) {
+          for (const v of value) sp.append(key, String(v))
+        } else if (value !== undefined && value !== null) {
+          sp.set(key, String(value))
+        }
+      }
+      return sp.toString()
+    },
+  },
 })
 
 export interface EarthquakeParams {
@@ -29,8 +42,8 @@ export async function fetchEarthquakes(params: EarthquakeParams): Promise<Earthq
 
   if (start_date) queryParams.start_date = start_date
   if (end_date) queryParams.end_date = end_date
-  if (alert_levels && alert_levels.length > 0) queryParams['alert_levels[]'] = alert_levels
-  if (countries && countries.length > 0) queryParams['countries[]'] = countries
+  if (alert_levels && alert_levels.length > 0) queryParams.alert_levels = alert_levels
+  if (countries && countries.length > 0) queryParams.countries = countries
 
   const response = await api.get<PaginatedResponse>('/api/v1/earthquakes', { params: queryParams })
   return response.data.items
@@ -42,8 +55,8 @@ export async function fetchSummary(params: Omit<EarthquakeParams, 'limit' | 'off
 
   if (start_date) queryParams.start_date = start_date
   if (end_date) queryParams.end_date = end_date
-  if (alert_levels && alert_levels.length > 0) queryParams['alert_levels[]'] = alert_levels
-  if (countries && countries.length > 0) queryParams['countries[]'] = countries
+  if (alert_levels && alert_levels.length > 0) queryParams.alert_levels = alert_levels
+  if (countries && countries.length > 0) queryParams.countries = countries
 
   const response = await api.get<EarthquakeSummary>('/api/v1/earthquakes/summary', { params: queryParams })
   return response.data
