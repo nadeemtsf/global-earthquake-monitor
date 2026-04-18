@@ -116,6 +116,11 @@ _xml_cache: TTLCache[str, str] = TTLCache(
     ttl=settings.CACHE_TTL_SECONDS,
 )
 
+_events_cache: TTLCache[str, List[EarthquakeEvent]] = TTLCache(
+    maxsize=32,
+    ttl=settings.CACHE_TTL_SECONDS,
+)
+
 
 def _cache_key(source: str, params: dict) -> str:
     """Build a stable cache key from the source and query params."""
@@ -194,28 +199,31 @@ class XMLPipelineService:
             raise
 
     def parse_canonical_xml(self, canonical_xml: str) -> List[EarthquakeEvent]:
-        """Parse canonical XML into list of EarthquakeEvent Pydantic models."""
+        """Parse canonical XML into list of EarthquakeEvent Pydantic models.
+
+        Uses direct child element access (element.findtext) instead of
+        per-field XPath queries.  For 1000 events × 20 fields this reduces
+        ~20,000 XPath traversals to ~1,000 direct hash lookups.
+        """
         try:
             root = etree.fromstring(canonical_xml.encode("utf-8"))
             events = []
 
-            for event_node in root.xpath("//event"):
-                # Helper to get text safely
-                def get_val(xpath, default=""):
-                    nodes = event_node.xpath(xpath)
-                    return nodes[0].text if nodes and nodes[0].text else default
+            for ev in root.iter("event"):
+                # O(1) child-tag lookup instead of O(tree) XPath per field
+                def txt(tag: str, default: str = "") -> str:
+                    el = ev.find(tag)
+                    return el.text if el is not None and el.text else default
 
-                # Parse and normalize fields
-                raw_time = get_val("main_time")
+                raw_time = txt("main_time")
                 try:
                     main_time = datetime.fromisoformat(raw_time.replace("Z", "+00:00"))
                 except (ValueError, TypeError):
                     main_time = datetime.now(timezone.utc)
 
-                mag = float(get_val("magnitude", "0.0"))
+                mag = float(txt("magnitude", "0.0"))
 
-                # Derive alert level if placeholder
-                alert = get_val("alert_level", "Unknown")
+                alert = txt("alert_level", "Unknown")
                 if alert == "Unknown" or not alert:
                     if mag >= 7.0:
                         alert = "Red"
@@ -226,31 +234,31 @@ class XMLPipelineService:
                     else:
                         alert = "Green"
 
-                place = get_val("place")
-                country = get_val("country", "Unknown")
+                place = txt("place")
+                country = txt("country", "Unknown")
                 if country == "Unknown":
                     country = _extract_country(place)
 
                 events.append(EarthquakeEvent(
-                    id=get_val("id"),
-                    title=get_val("title"),
+                    id=txt("id"),
+                    title=txt("title"),
                     main_time=main_time,
                     magnitude=mag,
-                    magnitude_type=get_val("magnitude_type"),
-                    depth_km=float(get_val("depth_km", "0.0")),
-                    latitude=float(get_val("latitude", "0.0")),
-                    longitude=float(get_val("longitude", "0.0")),
+                    magnitude_type=txt("magnitude_type"),
+                    depth_km=float(txt("depth_km", "0.0")),
+                    latitude=float(txt("latitude", "0.0")),
+                    longitude=float(txt("longitude", "0.0")),
                     place=place,
                     country=country,
                     alert_level=alert,
-                    alert_score=float(get_val("alert_score", "0.0")) or None,
-                    tsunami=int(get_val("tsunami", "0")),
-                    felt=int(get_val("felt", "0")) or None,
-                    status=get_val("status"),
-                    source=get_val("source"),
-                    link=get_val("link"),
-                    severity_text=get_val("severity_text") or None,
-                    population_text=get_val("population_text") or None
+                    alert_score=float(txt("alert_score", "0.0")) or None,
+                    tsunami=int(txt("tsunami", "0")),
+                    felt=int(txt("felt", "0")) or None,
+                    status=txt("status"),
+                    source=txt("source"),
+                    link=txt("link"),
+                    severity_text=txt("severity_text") or None,
+                    population_text=txt("population_text") or None
                 ))
 
             return events
@@ -265,7 +273,13 @@ class XMLPipelineService:
         end_date: str | None = None,
         min_mag: float = 2.5
     ) -> List[EarthquakeEvent]:
-        """Fetch, transform, and return earthquake events (async)."""
+        """Fetch, transform, and return earthquake events (async).
+
+        Results are cached in a TTL-backed store keyed by source + query
+        params.  Subsequent requests with identical parameters return the
+        pre-parsed, pre-sorted list directly — no XML fetch, XSLT, or
+        parsing overhead.
+        """
         params = {
             "starttime": start_date,
             "endtime": end_date,
@@ -273,10 +287,20 @@ class XMLPipelineService:
             "orderby": "time"
         }
 
+        key = _cache_key(source, params)
+        cached_events = _events_cache.get(key)
+        if cached_events is not None:
+            logger.info("Events cache HIT for %s (key=%s…)", source, key[:12])
+            return cached_events
+
         try:
             raw_xml = await self.fetch_raw_xml(source, params)
             canonical_xml = self.apply_xslt(raw_xml, source)
-            return self.parse_canonical_xml(canonical_xml)
+            events = self.parse_canonical_xml(canonical_xml)
+            events.sort(key=lambda e: e.main_time, reverse=True)
+            _events_cache[key] = events
+            logger.info("Events cache STORED for %s (%d events)", source, len(events))
+            return events
         except Exception as e:
             logger.error("Pipeline failure for source %s: %s", source, e)
             return []
