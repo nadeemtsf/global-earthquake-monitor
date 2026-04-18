@@ -3,10 +3,8 @@
 
 This router provides read-only endpoints for fetching, filtering, and
 summarising earthquake event data from the upstream USGS and GDACS
-providers. Full implementation is delivered in a later issue (#08).
+providers.
 
-Currently scaffolded endpoints
--------------------------------
 GET /api/v1/earthquakes
     Query earthquakes by date range, magnitude, source, and optional filters.
     Returns a paginated list of EarthquakeEvent models.
@@ -14,27 +12,24 @@ GET /api/v1/earthquakes
 GET /api/v1/earthquakes/summary
     Return aggregated summary statistics (count, avg/max magnitude, tsunami
     advisory count) for the current filter set.
-
-These handlers return placeholder 501 responses until the XML/XSLT
-pipeline (issue #06) and core REST endpoint logic (issue #08) are wired in.
 """
 
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query
 
 from app.core.config import Settings
-from app.core.dependencies import get_settings
+from app.core.dependencies import get_pipeline, get_settings
 from app.schemas.earthquakes import EarthquakeListResponse, EarthquakeSummary
 from app.services.xml_pipeline import XMLPipelineService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-pipeline = XMLPipelineService()
 
 # ---------------------------------------------------------------------------
 # Type aliases for reusable query param annotations
@@ -88,7 +83,7 @@ Search = Annotated[
         "where loading the full result into the browser would degrade render performance."
     ),
 )
-def list_earthquakes(
+async def list_earthquakes(
     start_date: StartDate = None,
     end_date: EndDate = None,
     min_magnitude: MinMagnitude = 2.5,
@@ -99,6 +94,7 @@ def list_earthquakes(
     alert_levels: list[str] | None = Query(None, description="Filter by alert level (repeatable): Green, Yellow, Orange, Red."),
     countries: list[str] | None = Query(None, description="Filter by country name (repeatable)."),
     cfg: Settings = Depends(get_settings),
+    pipeline: XMLPipelineService = Depends(get_pipeline),
 ) -> dict:
     logger.info(
         "GET /earthquakes — source=%s start=%s end=%s min_mag=%.1f limit=%d offset=%d",
@@ -110,7 +106,7 @@ def list_earthquakes(
     all_events = []
     for src in sources:
         all_events.extend(
-            pipeline.get_earthquakes(
+            await pipeline.get_earthquakes(
                 source=src,
                 start_date=start_date,
                 end_date=end_date,
@@ -163,17 +159,18 @@ def list_earthquakes(
         "tsunami advisory count) for the filtered earthquake dataset."
     ),
 )
-def earthquake_summary(
+async def earthquake_summary(
     start_date: StartDate = None,
     end_date: EndDate = None,
     min_magnitude: MinMagnitude = 2.5,
     source: DataSource = "USGS",
     cfg: Settings = Depends(get_settings),
+    pipeline: XMLPipelineService = Depends(get_pipeline),
 ) -> dict:
     logger.info("GET /earthquakes/summary — source=%s", source)
 
     # Fetch the full unfiltered page to compute accurate summary stats
-    response = list_earthquakes(
+    response = await list_earthquakes(
         start_date=start_date,
         end_date=end_date,
         min_magnitude=min_magnitude,
@@ -184,9 +181,10 @@ def earthquake_summary(
         alert_levels=None,
         countries=None,
         cfg=cfg,
+        pipeline=pipeline,
     )
     events = response["items"]
-    
+
     if not events:
         return {
             "total_count": 0,
@@ -199,7 +197,7 @@ def earthquake_summary(
 
     mags = [e.magnitude for e in events]
     tsunamis = sum(1 for e in events if e.tsunami == 1)
-    
+
     # Alert breakdown
     breakdown = {"green": 0, "yellow": 0, "orange": 0, "red": 0, "unknown": 0}
     for e in events:
@@ -209,8 +207,6 @@ def earthquake_summary(
         else:
             breakdown["unknown"] += 1
 
-    # Top regions (simplified counts)
-    from collections import Counter
     regions = Counter(e.country for e in events).most_common(5)
     top_regions = [{"region": r, "count": c} for r, c in regions]
 

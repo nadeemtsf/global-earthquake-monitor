@@ -20,12 +20,18 @@ def _make_client_with_settings(custom_settings):
     return TestClient(application, raise_server_exceptions=False)
 
 
+async def _mock_get_earthquakes_with_event(event):
+    """Return an async mock for get_earthquakes that yields a single event."""
+    async def _mock(self, *a, **kw):
+        return [event]
+    return _mock
+
+
 def test_chat_success_parses_actions(monkeypatch) -> None:
     """When Gemini returns actionable [[...]] tags they should be parsed."""
     from app.schemas.earthquakes import EarthquakeEvent
     from app.core.config import Settings
 
-    # Small sample event for context generation
     event = EarthquakeEvent(
         id="ev1",
         title="Test Quake",
@@ -46,13 +52,15 @@ def test_chat_success_parses_actions(monkeypatch) -> None:
         link="http://example",
     )
 
-    # Mock pipeline to return our single event
+    # Mock pipeline — must return a coroutine since get_earthquakes is async
+    async def mock_get_earthquakes(self, *a, **kw):
+        return [event]
+
     monkeypatch.setattr(
         "app.services.xml_pipeline.XMLPipelineService.get_earthquakes",
-        lambda self, *a, **kw: [event],
+        mock_get_earthquakes,
     )
 
-    # Mock the generative model to return a known response with tags
     class DummyResponse:
         def __init__(self, text: str):
             self.text = text
@@ -94,10 +102,12 @@ def test_chat_quota_exhaustion_returns_429(monkeypatch) -> None:
     """If all models raise quota errors the endpoint should return 429."""
     from app.core.config import Settings
 
-    # pipeline: return empty list
+    async def mock_get_earthquakes(self, *a, **kw):
+        return []
+
     monkeypatch.setattr(
         "app.services.xml_pipeline.XMLPipelineService.get_earthquakes",
-        lambda self, *a, **kw: [],
+        mock_get_earthquakes,
     )
 
     class FailModel:

@@ -1,17 +1,8 @@
 """
 /api/v1/chat — AI-powered seismic chat endpoint.
 
-This router wraps the SeismicAI service (backed by Google Gemini) behind a
-single POST endpoint that accepts a user message plus optional conversation
-history, and returns a plain-text AI response.
-
-Full implementation is delivered in issue #10 (Port AI chat endpoint).
-
-Currently scaffolded endpoints
--------------------------------
 POST /api/v1/chat
     Accept a ChatRequest body (message + history) and return an AI response.
-    Streamed responses will be considered in issue #10.
 """
 
 from __future__ import annotations
@@ -20,7 +11,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.config import Settings
-from app.core.dependencies import get_settings
+from app.core.dependencies import get_pipeline, get_settings
 from app.schemas.chat import ChatRequest, ChatResponse, SuggestedAction as SuggestedActionSchema
 
 from app.services.xml_pipeline import XMLPipelineService
@@ -49,6 +40,7 @@ router = APIRouter()
 async def chat(
     body: ChatRequest,
     cfg: Settings = Depends(get_settings),
+    pipeline: XMLPipelineService = Depends(get_pipeline),
 ) -> ChatResponse:
     logger.info("POST /chat — message=%.80s", body.message)
 
@@ -59,10 +51,9 @@ async def chat(
         )
 
     # Fetch the dataset slice matching the frontend's view so the AI can be grounded
-    pipeline = XMLPipelineService(xslt_dir=cfg.XSLT_DIR, cache_dir=cfg.CACHE_DIR)
     source = body.source or "USGS"
     min_mag = body.min_magnitude if body.min_magnitude is not None else cfg.DEFAULT_MIN_MAGNITUDE
-    events = pipeline.get_earthquakes(
+    events = await pipeline.get_earthquakes(
         source=source, start_date=body.start_date, end_date=body.end_date, min_mag=min_mag
     )
 
@@ -76,7 +67,6 @@ async def chat(
     try:
         result = await ai.generate_chat_response(body.message, context, history)
     except QuotaExceeded as e:
-        # Quota problems map to 429 Too Many Requests
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(e))
     except PermanentAIError as e:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))

@@ -63,10 +63,12 @@ def test_export_pdf_returns_pdf_and_headers(monkeypatch) -> None:
 
     dummy = _make_dummy_event()
 
-    # Patch XMLPipelineService.get_earthquakes to avoid network calls
+    async def mock_get_earthquakes(self, source, start_date, end_date, min_mag):
+        return [dummy]
+
     monkeypatch.setattr(
         "app.services.xml_pipeline.XMLPipelineService.get_earthquakes",
-        lambda self, source, start_date, end_date, min_mag: [dummy],
+        mock_get_earthquakes,
     )
 
     response = client.get("/api/v1/export/pdf")
@@ -76,16 +78,18 @@ def test_export_pdf_returns_pdf_and_headers(monkeypatch) -> None:
     cd = response.headers.get("content-disposition", "")
     assert "attachment" in cd
     assert "Situation_Report.pdf" in cd
-    # Basic sanity: PDF bytes should start with %PDF
     assert response.content.startswith(b"%PDF")
 
 
 def test_export_xml_returns_xml_and_headers(monkeypatch) -> None:
     client = TestClient(app)
 
+    async def mock_fetch_raw_xml(self, source, params):
+        return _CANONICAL_XML.decode("utf-8")
+
     monkeypatch.setattr(
         "app.services.xml_pipeline.XMLPipelineService.fetch_raw_xml",
-        lambda self, source, params: _CANONICAL_XML.decode("utf-8"),
+        mock_fetch_raw_xml,
     )
     monkeypatch.setattr(
         "app.services.xml_pipeline.XMLPipelineService.apply_xslt",
@@ -108,9 +112,12 @@ def test_export_csv_returns_csv_and_headers(monkeypatch) -> None:
 
     dummy = _make_dummy_event()
 
+    async def mock_get_earthquakes(self, source, start_date, end_date, min_mag):
+        return [dummy]
+
     monkeypatch.setattr(
         "app.services.xml_pipeline.XMLPipelineService.get_earthquakes",
-        lambda self, source, start_date, end_date, min_mag: [dummy],
+        mock_get_earthquakes,
     )
 
     response = client.get("/api/v1/export/csv")
@@ -121,7 +128,6 @@ def test_export_csv_returns_csv_and_headers(monkeypatch) -> None:
     cd = response.headers.get("content-disposition", "")
     assert "attachment" in cd
     assert "earthquakes.csv" in cd
-    # CSV must have a header row and at least one data row
     lines = response.content.decode("utf-8").splitlines()
     assert len(lines) >= 2
     assert "magnitude" in lines[0]

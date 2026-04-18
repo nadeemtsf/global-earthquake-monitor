@@ -24,6 +24,7 @@ from app.core.logging import configure_logging
 from app.core.rate_limit import RateLimitMiddleware
 from app.api.v1 import router as api_v1_router
 from app.api.health import router as health_router
+from app.services.xml_pipeline import compile_xslt_stylesheets
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -45,6 +46,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:  # noqa: ARG001
         "Global Earthquake Monitor API starting — environment=%s",
         settings.ENV,
     )
+    compile_xslt_stylesheets(settings.XSLT_DIR)
+    logger.info("XSLT stylesheets compiled and cached for process lifetime.")
     yield
     logger.info("Global Earthquake Monitor API shutting down.")
 
