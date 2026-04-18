@@ -5,11 +5,6 @@ Provides structured data downloads in multiple formats. The XML export is
 a primary deliverable of the architecture: it must return the *canonicalized*
 XML (transformed via XSLT), not raw upstream XML.
 
-Full implementation is delivered in issue #11 (Port export/report routes).
-The XML pipeline itself lands in issue #06.
-
-Currently scaffolded endpoints
--------------------------------
 GET /api/v1/export/xml
     Return canonical XSLT-transformed earthquake XML for the current dataset.
 
@@ -22,18 +17,17 @@ GET /api/v1/export/pdf
 
 from __future__ import annotations
 
-import logging
-from typing import Annotated, Literal
-from datetime import datetime, timezone
-
 import io
+import logging
+from datetime import datetime, timezone
+from typing import Annotated, Literal
 
 import pandas as pd
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 
 from app.core.config import Settings
-from app.core.dependencies import get_settings
+from app.core.dependencies import get_pipeline, get_settings
 from app.services.pdf_report import generate_situation_report
 from app.services.xml_pipeline import XMLPipelineService
 
@@ -63,8 +57,7 @@ DataSource = Annotated[
         "Return XSLT-transformed canonical earthquake XML. "
         "This route must emit the *canonicalized* schema produced by the XSLT "
         "pipeline in transforms/, never the raw upstream QuakeML or RSS XML. "
-        "Fields map to the EarthquakeEvent JSON model. "
-        "Full implementation lands in issue #11 / pipeline wired in issue #06."
+        "Fields map to the EarthquakeEvent JSON model."
     ),
     responses={
         200: {
@@ -73,15 +66,15 @@ DataSource = Annotated[
         }
     },
 )
-def export_xml(
+async def export_xml(
     start_date: StartDate = None,
     end_date: EndDate = None,
     min_magnitude: MinMagnitude = 2.5,
     source: DataSource = "USGS",
     cfg: Settings = Depends(get_settings),
+    pipeline: XMLPipelineService = Depends(get_pipeline),
 ) -> Response:
     logger.info("GET /export/xml — source=%s", source)
-    pipeline = XMLPipelineService()
     params = {
         "starttime": start_date,
         "endtime": end_date,
@@ -89,13 +82,12 @@ def export_xml(
         "orderby": "time",
     }
     if source == "BOTH":
-        # Fetch both sources and concatenate their canonical XML event nodes
         from lxml import etree  # noqa: PLC0415
 
         root = etree.Element("EarthquakeDataset")
         for src in ("USGS", "GDACS"):
             try:
-                raw_xml = pipeline.fetch_raw_xml(src, dict(params))
+                raw_xml = await pipeline.fetch_raw_xml(src, dict(params))
                 canonical_xml = pipeline.apply_xslt(raw_xml, src)
                 src_root = etree.fromstring(canonical_xml.encode("utf-8"))
                 for node in src_root:
@@ -104,7 +96,7 @@ def export_xml(
                 logger.warning("XML fetch failed for source %s: %s", src, exc)
         canonical_bytes = etree.tostring(root, pretty_print=True, xml_declaration=True, encoding="utf-8")
     else:
-        raw_xml = pipeline.fetch_raw_xml(source, params)
+        raw_xml = await pipeline.fetch_raw_xml(source, params)
         canonical_xml = pipeline.apply_xslt(raw_xml, source)
         canonical_bytes = canonical_xml.encode("utf-8")
 
@@ -123,21 +115,21 @@ def export_xml(
         }
     },
 )
-def export_csv(
+async def export_csv(
     start_date: StartDate = None,
     end_date: EndDate = None,
     min_magnitude: MinMagnitude = 2.5,
     source: DataSource = "USGS",
     cfg: Settings = Depends(get_settings),
+    pipeline: XMLPipelineService = Depends(get_pipeline),
 ) -> Response:
     logger.info("GET /export/csv — source=%s", source)
-    pipeline = XMLPipelineService()
     events: list = []
     if source == "BOTH":
-        events.extend(pipeline.get_earthquakes("USGS", start_date, end_date, min_magnitude))
-        events.extend(pipeline.get_earthquakes("GDACS", start_date, end_date, min_magnitude))
+        events.extend(await pipeline.get_earthquakes("USGS", start_date, end_date, min_magnitude))
+        events.extend(await pipeline.get_earthquakes("GDACS", start_date, end_date, min_magnitude))
     else:
-        events = pipeline.get_earthquakes(source, start_date, end_date, min_magnitude)
+        events = await pipeline.get_earthquakes(source, start_date, end_date, min_magnitude)
 
     rows = [e.model_dump() if hasattr(e, "model_dump") else e.dict() for e in events]
     df = pd.DataFrame(rows)
@@ -163,7 +155,7 @@ def export_csv(
         }
     },
 )
-def export_pdf(
+async def export_pdf(
     start_date: StartDate = None,
     end_date: EndDate = None,
     min_magnitude: MinMagnitude = 2.5,
@@ -171,6 +163,7 @@ def export_pdf(
     alerts: list[str] | None = Query(None, description="Filter by alert level; repeatable"),
     countries: list[str] | None = Query(None, description="Filter by country; repeatable"),
     cfg: Settings = Depends(get_settings),
+    pipeline: XMLPipelineService = Depends(get_pipeline),
 ) -> Response:
     logger.info(
         "GET /export/pdf — source=%s start=%s end=%s min_mag=%s alerts=%s countries=%s",
@@ -182,16 +175,13 @@ def export_pdf(
         countries,
     )
 
-    # Fetch events via the XML pipeline service. Support BOTH by merging sources.
-    pipeline = XMLPipelineService()
     events: list = []
     if source == "BOTH":
-        events.extend(pipeline.get_earthquakes("USGS", start_date, end_date, min_magnitude))
-        events.extend(pipeline.get_earthquakes("GDACS", start_date, end_date, min_magnitude))
+        events.extend(await pipeline.get_earthquakes("USGS", start_date, end_date, min_magnitude))
+        events.extend(await pipeline.get_earthquakes("GDACS", start_date, end_date, min_magnitude))
     else:
-        events = pipeline.get_earthquakes(source, start_date, end_date, min_magnitude)
+        events = await pipeline.get_earthquakes(source, start_date, end_date, min_magnitude)
 
-    # Build filters dict for the PDF generator
     filters = {
         "source": source,
         "start_date": start_date,
@@ -201,7 +191,6 @@ def export_pdf(
         "countries": countries or [],
     }
 
-    # Generate PDF bytes
     pdf_bytes = generate_situation_report(events, filters, datetime.now(timezone.utc))
 
     headers = {"Content-Disposition": "attachment; filename=Situation_Report.pdf"}
