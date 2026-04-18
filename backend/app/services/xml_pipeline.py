@@ -21,6 +21,41 @@ from app.schemas.earthquakes import EarthquakeEvent
 
 logger = logging.getLogger(__name__)
 
+_US_STATES = {
+    # Full names
+    "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
+    "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho",
+    "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana",
+    "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota",
+    "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada",
+    "New Hampshire", "New Jersey", "New Mexico", "New York",
+    "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon",
+    "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota",
+    "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington",
+    "West Virginia", "Wisconsin", "Wyoming", "Puerto Rico", "Guam",
+    "Virgin Islands", "American Samoa", "Northern Mariana Islands",
+    # Abbreviations
+    "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
+    "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
+    "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
+    "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
+    "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
+    "PR", "GU", "VI", "AS", "MP",
+}
+
+
+def _extract_country(place: str) -> str:
+    """Derive country from a USGS place string like '20 km NE of City, Country'."""
+    if not place:
+        return "Unknown"
+    parts = place.split(",")
+    last = parts[-1].strip()
+    if not last:
+        return "Unknown"
+    if last in _US_STATES:
+        return "United States"
+    return last
+
 
 class XMLPipelineService:
     """End-to-end XML data pipeline: Raw -> XSLT -> Canonical -> JSON."""
@@ -111,6 +146,11 @@ class XMLPipelineService:
                     else:
                         alert = "Green"
 
+                place = get_val("place")
+                country = get_val("country", "Unknown")
+                if country == "Unknown":
+                    country = _extract_country(place)
+
                 events.append(EarthquakeEvent(
                     id=get_val("id"),
                     title=get_val("title"),
@@ -120,8 +160,8 @@ class XMLPipelineService:
                     depth_km=float(get_val("depth_km", "0.0")),
                     latitude=float(get_val("latitude", "0.0")),
                     longitude=float(get_val("longitude", "0.0")),
-                    place=get_val("place"),
-                    country=get_val("country", "Unknown"),
+                    place=place,
+                    country=country,
                     alert_level=alert,
                     alert_score=float(get_val("alert_score", "0.0")) or None,
                     tsunami=int(get_val("tsunami", "0")),

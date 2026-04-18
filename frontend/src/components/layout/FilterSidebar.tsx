@@ -3,6 +3,13 @@ import { useFilterStore, type FilterState } from '../../store/filterStore'
 
 const ALERT_LEVELS = ['Green', 'Yellow', 'Orange', 'Red']
 
+const COMMON_COUNTRIES = [
+  'United States', 'Japan', 'Indonesia', 'China', 'Turkey',
+  'Mexico', 'Italy', 'Greece', 'Chile', 'Peru',
+  'Iran', 'New Zealand', 'Philippines', 'India', 'Pakistan',
+  'Afghanistan', 'Nepal', 'Papua New Guinea', 'Tonga', 'Vanuatu',
+]
+
 export default function FilterSidebar() {
   const store = useFilterStore()
 
@@ -11,12 +18,24 @@ export default function FilterSidebar() {
   const [localEnd, setLocalEnd] = useState(store.endDate ?? '')
   const [localMag, setLocalMag] = useState(store.minMagnitude)
   const [localAlerts, setLocalAlerts] = useState<string[]>(store.alertLevels)
+  const [localCountries, setLocalCountries] = useState<string[]>(store.countries)
+  const [countrySearch, setCountrySearch] = useState('')
 
   function toggleAlert(level: string) {
     setLocalAlerts((prev) =>
       prev.includes(level) ? prev.filter((l) => l !== level) : [...prev, level]
     )
   }
+
+  function toggleCountry(country: string) {
+    setLocalCountries((prev) =>
+      prev.includes(country) ? prev.filter((c) => c !== country) : [...prev, country]
+    )
+  }
+
+  const filteredCountries = COMMON_COUNTRIES.filter((c) =>
+    c.toLowerCase().includes(countrySearch.toLowerCase())
+  )
 
   function applyFilters() {
     store.applyFilters({
@@ -25,6 +44,7 @@ export default function FilterSidebar() {
       endDate: localEnd || null,
       minMagnitude: localMag,
       alertLevels: localAlerts,
+      countries: localCountries,
     })
   }
 
@@ -87,7 +107,7 @@ export default function FilterSidebar() {
       </div>
 
       {/* Alert levels */}
-      <div className="mb-6">
+      <div className="mb-4">
         <label className="block text-xs text-gray-400 mb-2 uppercase tracking-wide">Alert Levels</label>
         {ALERT_LEVELS.map((level) => (
           <label key={level} className="flex items-center gap-2 mb-1 cursor-pointer">
@@ -100,6 +120,41 @@ export default function FilterSidebar() {
             <span className="text-sm">{level}</span>
           </label>
         ))}
+      </div>
+
+      {/* Country filter */}
+      <div className="mb-6">
+        <label className="block text-xs text-gray-400 mb-2 uppercase tracking-wide">
+          Countries {localCountries.length > 0 && <span className="text-blue-400">({localCountries.length})</span>}
+        </label>
+        <input
+          type="text"
+          value={countrySearch}
+          onChange={(e) => setCountrySearch(e.target.value)}
+          placeholder="Search countries..."
+          className="w-full bg-gray-700 text-white rounded px-2 py-1.5 text-xs border border-gray-600 focus:outline-none focus:border-blue-500 placeholder-gray-500 mb-2"
+        />
+        <div className="max-h-36 overflow-y-auto space-y-1 pr-1">
+          {filteredCountries.map((country) => (
+            <label key={country} className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={localCountries.includes(country)}
+                onChange={() => toggleCountry(country)}
+                className="accent-blue-500 shrink-0"
+              />
+              <span className="text-xs text-gray-300">{country}</span>
+            </label>
+          ))}
+        </div>
+        {localCountries.length > 0 && (
+          <button
+            onClick={() => setLocalCountries([])}
+            className="mt-2 text-xs text-gray-500 hover:text-red-400 transition-colors"
+          >
+            Clear countries
+          </button>
+        )}
       </div>
 
       <button

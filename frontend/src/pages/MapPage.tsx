@@ -19,7 +19,7 @@ const ALERT_COLORS: Record<string, string> = {
 }
 
 export default function MapPage() {
-  const { data: events, isLoading, isError } = useEarthquakes(2000)
+  const { data: events, isLoading, isError } = useEarthquakes(500)
 
   return (
     <div className="relative h-[calc(100vh-120px)]">

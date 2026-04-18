@@ -22,7 +22,7 @@ const SPEEDS = [1, 5, 10] as const
 type Speed = (typeof SPEEDS)[number]
 
 export default function TimelinePage() {
-  const { data: events, isLoading, isError } = useEarthquakes(2000)
+  const { data: events, isLoading, isError } = useEarthquakes(500)
 
   const [currentTime, setCurrentTime] = useState<Date>(new Date())
   const [isPlaying, setIsPlaying] = useState(false)
