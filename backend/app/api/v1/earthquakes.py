@@ -101,9 +101,11 @@ async def list_earthquakes(
         source, start_date, end_date, min_magnitude, limit, offset,
     )
 
-    # Fetch from upstream via XML/XSLT pipeline
+    # Fetch from upstream via XML/XSLT pipeline.
+    # get_earthquakes() returns a pre-sorted (newest-first), cached list.
+    # For BOTH sources we merge two sorted lists and re-sort once.
     sources = ["USGS", "GDACS"] if source == "BOTH" else [source]
-    all_events = []
+    all_events: list = []
     for src in sources:
         all_events.extend(
             await pipeline.get_earthquakes(
@@ -114,8 +116,8 @@ async def list_earthquakes(
             )
         )
 
-    # Sort newest first
-    all_events.sort(key=lambda x: x.main_time, reverse=True)
+    if len(sources) > 1:
+        all_events.sort(key=lambda x: x.main_time, reverse=True)
 
     # Server-side filters
     if alert_levels:

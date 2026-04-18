@@ -7,6 +7,11 @@ The limiter is implemented as a pure-Python ASGI middleware (no Redis or
 third-party dependency required).  It stores per-IP request timestamps in a
 ``collections.deque`` and enforces a configurable sliding window.
 
+IP buckets are held in a ``cachetools.TTLCache`` so that stale entries for
+IPs that have stopped sending requests are automatically evicted, preventing
+unbounded memory growth under high-cardinality traffic (e.g. rotating IPs,
+DDoS).
+
 Configuration
 -------------
 All values come from ``app.core.config.Settings``:
@@ -33,16 +38,9 @@ present, falling back to the direct connection address.  This is correct for
 deployments behind a single trusted reverse proxy; update the extraction logic
 if your deployment uses multiple proxy layers.
 
-Development mode
-----------------
-Has no automatic bypass separate from ``RATE_LIMIT_ENABLED``.  Because the
-React dev server and the backend share the same localhost, all requests appear
-to come from ``127.0.0.1``.  The default limit of 60 req/min is high enough
-that normal local development is never gated.
-
 Thread safety
 -------------
-The ``threading.Lock`` guards the shared ``_buckets`` dict.  This is safe for
+The ``threading.Lock`` guards the shared ``_buckets`` cache.  This is safe for
 Uvicorn's single-process mode.  In a multi-worker deployment use an external
 store (e.g. Redis) instead.
 """
@@ -55,6 +53,7 @@ import time
 from collections import deque
 from typing import TYPE_CHECKING
 
+from cachetools import TTLCache
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
@@ -100,8 +99,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self._enabled: bool = cfg.RATE_LIMIT_ENABLED
         self._max_requests: int = cfg.RATE_LIMIT_REQUESTS
         self._window: float = float(cfg.RATE_LIMIT_WINDOW_SECONDS)
-        # {client_ip: deque of request timestamps (float)}
-        self._buckets: dict[str, deque[float]] = {}
+        # Auto-expiring bucket store: IPs that stop sending requests are
+        # evicted after 2× the window, preventing unbounded memory growth.
+        self._buckets: TTLCache[str, deque[float]] = TTLCache(
+            maxsize=10_000,
+            ttl=self._window * 2,
+        )
         self._lock = threading.Lock()
         logger.info(
             "RateLimitMiddleware initialised — enabled=%s max=%d window=%ds",
@@ -125,7 +128,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         window_start = now - self._window
 
         with self._lock:
-            bucket = self._buckets.setdefault(client_ip, deque())
+            bucket = self._buckets.get(client_ip)
+            if bucket is None:
+                bucket = deque()
+
             # Evict timestamps that have fallen outside the window
             while bucket and bucket[0] <= window_start:
                 bucket.popleft()
@@ -138,6 +144,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 bucket.append(now)
                 remaining = self._max_requests - count - 1
                 allowed = True
+
+            # Re-insert to refresh the TTL expiry on every access
+            self._buckets[client_ip] = bucket
 
         return allowed, remaining
 
