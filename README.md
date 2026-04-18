@@ -20,7 +20,7 @@ global-earthquake-monitor/
 - **frontend/** — Vite dev server on `http://localhost:5173`
 - **transforms/** — XSLT stylesheets used by the backend canonicalization pipeline. See [transforms/README.md](transforms/README.md).
 
-Full architecture and migration notes live in [docs/MIGRATION_ARCHITECTURE.md](docs/MIGRATION_ARCHITECTURE.md). API contracts are documented in [docs/API_CONTRACTS.md](docs/API_CONTRACTS.md).
+API contracts are documented in [docs/API_CONTRACTS.md](docs/API_CONTRACTS.md). Security notes live in [docs/SECURITY.md](docs/SECURITY.md).
 
 ---
 
@@ -121,17 +121,12 @@ npm run build
 
 ---
 
-## Secrets and Issue Automation
+## Secrets
 
 This repository must not store plaintext credentials in tracked files.
 
 - Backend configuration is read from `backend/.env` (see `backend/.env.example`).
-- `create_issues.py` reads `GITHUB_TOKEN` from the environment when syncing GitHub issues.
-
-```bash
-export GITHUB_TOKEN="<your_github_token>"
-python create_issues.py
-```
+- Real `.env` files are gitignored.
 
 If a token was ever committed, revoke it immediately and replace it before continuing development.
 
