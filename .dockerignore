@@ -6,7 +6,6 @@
 .pytest_cache
 .ruff_cache
 .mypy_cache
-.streamlit
 __pycache__
 *.pyc
 *.pyo
@@ -26,6 +25,4 @@ USGS_cache.csv
 GDACS_cache.csv
 earthquakes.xml
 GDACS_data.xml
-xml/
-create_issues.py
 docs/

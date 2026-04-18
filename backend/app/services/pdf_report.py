@@ -1,9 +1,8 @@
 """PDF Situation Report generator service for the backend.
 
-Ports the legacy Streamlit PDF generator from the `src/` tree and adapts
-it to accept a list of `EarthquakeEvent` Pydantic models. The module
-produces a bytes payload suitable for returning as an `application/pdf`
-response from the API.
+Accepts a list of `EarthquakeEvent` Pydantic models and produces a
+bytes payload suitable for returning as an `application/pdf` response
+from the API.
 """
 
 from __future__ import annotations

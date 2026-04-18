@@ -1,166 +1,146 @@
-A high-performance, real-time **data science dashboard** built with **Streamlit** that monitors global earthquake activity by aggregating and normalizing data from multiple sources: **USGS Earthquake Catalog** and **GDACS (Global Disaster Alert and Coordination System)**.
+# Global Earthquake Monitor
 
-The application uses a **strategy-based provider architecture** to fetch data in parallel, ensures long-term persistence with a **local cache**, and presents interactive, theme-consistent visualizations powered by **Plotly**.
+A real-time earthquake monitoring application that aggregates and normalizes data from multiple seismic data sources: **USGS Earthquake Catalog** and **GDACS (Global Disaster Alert and Coordination System)**.
 
----
-
-## 🔗 Live Demo
-
-👉 **[https://global-earthquake-live-monitor.streamlit.app](https://global-earthquake-live-monitor.streamlit.app)**
+The project is a monorepo with a **FastAPI** backend and a **React (Vite + TypeScript)** frontend, connected by a canonical XML/XSLT transformation pipeline.
 
 ---
 
-## 📸 Dashboard Preview
+## Architecture
 
-![Dashboard Screenshot](assets/dashboard_screenshot.png)
+```text
+global-earthquake-monitor/
+  backend/      FastAPI app, XML/XSLT pipeline, API routes, tests
+  frontend/     React + Vite + Tailwind UI
+  transforms/   XSLT stylesheets (USGS + GDACS -> canonical)
+  docs/         API contracts, migration architecture, security
+```
 
-*Interactive dashboard showing daily earthquake trends, magnitude distributions, alert level breakdowns, depth analysis, and geographic mapping.*
+- **backend/** — FastAPI (uvicorn) on `http://localhost:8000`
+- **frontend/** — Vite dev server on `http://localhost:5173`
+- **transforms/** — XSLT stylesheets used by the backend canonicalization pipeline. See [transforms/README.md](transforms/README.md).
 
----
-
-## 🚀 Quick Start (Recommended: Docker)
-
-Testing and deploying the application is easiest using **Docker**:
-
-1. **Clone and Build**
-   ```bash
-   git clone https://github.com/nadeemtsf/global-earthquake-monitor.git
-   cd global-earthquake-monitor
-   docker-compose up --build
-   ```
-
-2. **Access the Dashboard** at `http://localhost:8501`
-
-### Or Run Locally with Python
-
-1. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. **Run the application**
-   ```bash
-   streamlit run src/app.py
-   ```
+API contracts are documented in [docs/API_CONTRACTS.md](docs/API_CONTRACTS.md). Security notes live in [docs/SECURITY.md](docs/SECURITY.md).
 
 ---
 
-## 🧭 Migration Architecture
+## Quick Start (Docker)
 
-The repository is currently transitioning from a single Streamlit app to a monorepo with a FastAPI backend and React frontend.
+```bash
+git clone https://github.com/nadeemtsf/global-earthquake-monitor.git
+cd global-earthquake-monitor
+cp backend/.env.example backend/.env   # fill in API keys
+docker compose --profile dev up --build
+```
 
-- Target structure and migration boundaries are documented in [docs/MIGRATION_ARCHITECTURE.md](docs/MIGRATION_ARCHITECTURE.md).
-- Streamlit remains temporary during migration for feature-parity validation only.
-- The final target structure separates `backend/`, `frontend/`, `transforms/`, and shared docs.
+- Backend API: `http://localhost:8000`
+- Frontend: `http://localhost:5173`
 
-Important: the `transforms/` directory contains the XSLT stylesheets used by the backend canonicalization pipeline and is a MANDATORY graded deliverable. See [transforms/README.md](transforms/README.md) for architecture, samples, and usage instructions.
+To run backend only:
 
----
-
-## 📊 Key Features
-
-### 📡 Multi-Provider Data Pipeline
-- **Parallel Fetching** — Uses `ThreadPoolExecutor` to fetch data from **USGS** and **GDACS** simultaneously, significantly reducing load times.
-- **Provider Architecture** — Modular design (Strategy Pattern) for data providers, making it easy to add new seismic sources.
-- **Historical data access** — Select any date range (days, months, or years back).
-- **Network Resilience** — Automatic fallback to a persistent **local `.cache/` directory** if upstream APIs are unreachable.
-
-### 📥 Export & Reporting
-- Raw **QuakeML XML** and GDACS XML files are exported on every fetch (ideal for downstream XSLT pipelines).
-- **Situation Reports** — One-click generation of professional PDF summaries containing KPIs, top events, and natively-rendered visualizations.
-
-### 🤖 Seismic AI Assistant
-- Integrated AI chat assistant (powered by Google Gemini) floating on the dashboard.
-- Context-aware responses that can analyze the currently filtered earthquake data and answer specific questions about ongoing seismic events.
-
-### 🧩 Data Science & Processing
-- **Schema Normalization** — Consistent data schema across differing providers (GeoJSON vs RSS/XML).
-- **Alert Classification** — Standardized alert level logic (🔴 ≥7.0, 🟠 ≥5.5, 🟡 ≥4.5).
-- **Region Extraction** — Automated parsing of country and region tags from unstructured location strings.
-- **Tsunami Flags** — Integrated warnings and specialized map styling for tsunami-prone events.
-
-### 📈 Interactive Dashboard
-- **Plotly Visualizations** — 100% interactive charts (Bar, Pie, Boxplot, Scatter, Line) with custom hover tooltips and consistent dark-theme styling.
-- **Dynamic Map (Pydeck)** — High-performance scatterplot map with radius scaling and alert-level color coding.
-- **Real-time Filters** — Instantly filter by date, magnitude, region, and alert level.
+```bash
+docker compose up --build backend
+```
 
 ---
 
+## Local Development
 
+### Backend
 
-## 🌐 Data Sources
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate      # or .venv\Scripts\activate on Windows
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+Run tests and lint:
+
+```bash
+cd backend
+pytest -v
+ruff check .
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Type check and build:
+
+```bash
+cd frontend
+npx tsc --noEmit
+npm run build
+```
+
+---
+
+## Features
+
+### Multi-Provider Data Pipeline
+- Parallel fetching from **USGS** and **GDACS** with a strategy-based provider architecture.
+- Historical data access across configurable date ranges.
+- Local cache fallback when upstream APIs are unreachable.
+
+### XML / XSLT Pipeline
+- Raw QuakeML XML and GDACS RSS feeds are normalized to a canonical XML schema via XSLT.
+- Canonical output is the authoritative form used by API consumers and exports.
+
+### Export & Reporting
+- REST endpoints for filtered earthquake data, summaries, and PDF situation reports.
+
+### Seismic AI Assistant
+- Integrated AI chat backed by Google Gemini, with context-aware responses over the currently filtered dataset.
+
+### Interactive Dashboard
+- React + Tailwind UI with map, time-series, timeline, and analytics views.
+- Real-time filters for date, magnitude, region, country, and alert level.
+
+---
+
+## Data Sources
 
 1. **USGS Earthquake Catalog** — [fdsnws/event/1/](https://earthquake.usgs.gov/fdsnws/event/1/) (GeoJSON/QuakeML)
 2. **GDACS RSS Feed** — [Global Disaster Alert System](https://www.gdacs.org/) (RSS/XML)
 
 ---
 
-## 🛠️ Technical Highlights
+## Quality Assurance
 
-### Performance & Scalability
-- **Multithreading**: Parallelizing API requests for a more responsive user experience.
-- **Dockerization**: Consistent development environment using `python:3.11-slim`.
-- **Streamlit Caching**: Optimized `@st.cache_data` decorators to minimize redundant processing.
-
-### Quality Assurance
-- **Linting**: Enforced code quality with `ruff`.
-- **Testing**: Comprehensive `pytest` suite for core utilities and data parsers.
-- **Persistence**: Decoupled cache from system temp to ensure network resilience across reboots.
-- **Secret Hygiene**: Tokens and API keys must be provided through environment variables or platform secrets, never committed to the repository.
+- **Linting:** `ruff` (backend), ESLint + TypeScript (frontend).
+- **Testing:** `pytest` suite for backend API, pipeline, and security.
+- **CI:** GitHub Actions runs secret scanning, backend lint + tests, Docker build, and frontend type-check + build on every push and PR.
+- **Secret hygiene:** All tokens and API keys are provided via environment variables. Real `.env` files are gitignored.
 
 ---
 
-## 🔐 Secrets and Issue Automation
+## Secrets
 
 This repository must not store plaintext credentials in tracked files.
 
-- Use environment variables or deployment secrets for all tokens and API keys.
-- `GOOGLE_API_KEY` is read from Streamlit secrets or the process environment.
-- `create_issues.py` reads `GITHUB_TOKEN` from the environment when syncing GitHub issues.
+- Backend configuration is read from `backend/.env` (see `backend/.env.example`).
+- Real `.env` files are gitignored.
 
-Example PowerShell usage:
-
-```powershell
-$env:GITHUB_TOKEN = "<your_github_token>"
-python create_issues.py
-```
-
-Example Bash usage:
-
-```bash
-export GITHUB_TOKEN="<your_github_token>"
-python create_issues.py
-```
-
-If a token was ever committed, revoke it immediately and replace it with a new one before continuing development.
+If a token was ever committed, revoke it immediately and replace it before continuing development.
 
 ---
 
-## 📈 Data Science Concepts Demonstrated
-
-- **Data ingestion** from external APIs (REST/JSON + XML)
-- **XML export** for XSLT transformation pipelines
-- **Data cleaning** and type conversion (epoch timestamps, numeric coercion)
-- **Feature engineering** (alert level derivation from magnitude, country extraction from place strings)
-- **Time-series analysis** (daily aggregates, rolling averages, cumulative sums)
-- **Exploratory data analysis** (distributions, depth vs magnitude scatter, geographic patterns)
-- **Interactive visualization** (filters, multi-chart dashboards, map rendering)
-- **Automated reporting** (dynamic PDF generation and visual rendering)
-- **LLM Integration** (contextual data analysis using Generative AI)
-
----
-
-## 📝 License
+## License
 
 This project is licensed. See the `LICENSE` file for details.
 
-Unless stated otherwise by the author, all rights are reserved.
-If you want to reuse or redistribute any part of this repository, please
-contact the author first for permission.
+Unless stated otherwise by the author, all rights are reserved. If you want to reuse or redistribute any part of this repository, please contact the author first for permission.
 
 ---
 
-## 🙋 Author
+## Author
 
-**Nadim Baboun**  
-🔗 [GitHub Profile](https://github.com/nadeemtsf)
+**Nadim Baboun**
+[GitHub Profile](https://github.com/nadeemtsf)
