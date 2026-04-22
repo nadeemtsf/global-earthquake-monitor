@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   BarChart,
   Bar,
@@ -12,9 +12,8 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts'
-import { useSummary } from '../hooks/useSummary'
 import { useEarthquakes } from '../hooks/useEarthquakes'
-import type { EarthquakeEvent } from '../types/earthquake'
+import type { EarthquakeEvent, EarthquakeSummary } from '../types/earthquake'
 
 const ALERT_COLORS: Record<string, string> = {
   green: '#22c55e',
@@ -46,6 +45,32 @@ function buildMagnitudeHistogram(events: EarthquakeEvent[]) {
   return Object.entries(bins).map(([bin, count]) => ({ bin, count }))
 }
 
+function deriveSummary(events: EarthquakeEvent[]): EarthquakeSummary {
+  const total_count = events.length
+  const average_magnitude =
+    total_count > 0 ? events.reduce((sum, e) => sum + e.magnitude, 0) / total_count : 0
+  const max_magnitude = total_count > 0 ? Math.max(...events.map((e) => e.magnitude)) : 0
+  const tsunami_count = events.filter((e) => e.tsunami === 1).length
+
+  const alert_breakdown = { green: 0, yellow: 0, orange: 0, red: 0, unknown: 0 }
+  for (const e of events) {
+    const key = e.alert_level.toLowerCase() as keyof typeof alert_breakdown
+    if (key in alert_breakdown) alert_breakdown[key]++
+  }
+
+  const regionCounts: Record<string, number> = {}
+  for (const e of events) {
+    const region = e.country || 'Unknown'
+    regionCounts[region] = (regionCounts[region] || 0) + 1
+  }
+  const top_regions = Object.entries(regionCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([region, count]) => ({ region, count }))
+
+  return { total_count, average_magnitude, max_magnitude, tsunami_count, alert_breakdown, top_regions }
+}
+
 function Spinner() {
   return (
     <div className="flex items-center justify-center h-48">
@@ -57,13 +82,11 @@ function Spinner() {
 const PAGE_SIZE = 20
 
 export default function AnalyticsPage() {
-  const { data: summary, isLoading: summaryLoading, isError: summaryError } = useSummary()
-  const { data: events, isLoading: eventsLoading, isError: eventsError } = useEarthquakes(500)
+  const { data: events, isLoading, isError } = useEarthquakes(500)
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(0)
 
-  const isLoading = summaryLoading || eventsLoading
-  const isError = summaryError || eventsError
+  const summary = useMemo(() => (events ? deriveSummary(events) : null), [events])
 
   if (isLoading) return <Spinner />
   if (isError || !summary || !events) {
@@ -77,9 +100,8 @@ export default function AnalyticsPage() {
   const top10 = [...events].sort((a, b) => b.magnitude - a.magnitude).slice(0, 10)
   const magHistogram = buildMagnitudeHistogram(events)
 
-  // Search/grid
   const filteredEvents = events.filter((ev) =>
-    ev.place.toLowerCase().includes(searchQuery.toLowerCase())
+    ev.place.toLowerCase().includes(searchQuery.toLowerCase()),
   )
   const totalPages = Math.ceil(filteredEvents.length / PAGE_SIZE)
   const pageEvents = filteredEvents.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE)
@@ -116,7 +138,9 @@ export default function AnalyticsPage() {
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
               <XAxis dataKey="bin" tick={{ fill: '#9ca3af', fontSize: 11 }} />
               <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} />
-              <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', color: '#fff' }} />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#1f2937', border: 'none', color: '#fff' }}
+              />
               <Bar dataKey="count" fill="#3b82f6" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -141,7 +165,9 @@ export default function AnalyticsPage() {
                   <Cell key={index} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', color: '#fff' }} />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#1f2937', border: 'none', color: '#fff' }}
+              />
               <Legend wrapperStyle={{ color: '#9ca3af', fontSize: 12 }} />
             </PieChart>
           </ResponsiveContainer>
@@ -152,11 +178,22 @@ export default function AnalyticsPage() {
       <div className="bg-gray-800 rounded-lg p-4">
         <h3 className="text-sm font-semibold text-gray-300 mb-3">Top Regions</h3>
         <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={topRegionsData} layout="vertical" margin={{ top: 4, right: 24, bottom: 4, left: 8 }}>
+          <BarChart
+            data={topRegionsData}
+            layout="vertical"
+            margin={{ top: 4, right: 24, bottom: 4, left: 8 }}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} />
             <XAxis type="number" tick={{ fill: '#9ca3af', fontSize: 11 }} />
-            <YAxis type="category" dataKey="region" tick={{ fill: '#9ca3af', fontSize: 11 }} width={120} />
-            <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', color: '#fff' }} />
+            <YAxis
+              type="category"
+              dataKey="region"
+              tick={{ fill: '#9ca3af', fontSize: 11 }}
+              width={120}
+            />
+            <Tooltip
+              contentStyle={{ backgroundColor: '#1f2937', border: 'none', color: '#fff' }}
+            />
             <Bar dataKey="count" fill="#8b5cf6" radius={[0, 3, 3, 0]} />
           </BarChart>
         </ResponsiveContainer>
@@ -177,9 +214,14 @@ export default function AnalyticsPage() {
             </thead>
             <tbody>
               {top10.map((ev) => (
-                <tr key={ev.id} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
+                <tr
+                  key={ev.id}
+                  className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors"
+                >
                   <td className="py-2 pr-4 text-gray-200 max-w-xs truncate">{ev.place}</td>
-                  <td className="py-2 pr-4 text-right font-semibold text-orange-400">{ev.magnitude.toFixed(1)}</td>
+                  <td className="py-2 pr-4 text-right font-semibold text-orange-400">
+                    {ev.magnitude.toFixed(1)}
+                  </td>
                   <td className="py-2 pr-4 text-right text-gray-300">{ev.depth_km.toFixed(1)}</td>
                   <td className="py-2 text-right text-gray-400 text-xs whitespace-nowrap">
                     {new Date(ev.main_time).toUTCString().replace(' GMT', ' UTC')}
@@ -220,17 +262,28 @@ export default function AnalyticsPage() {
             </thead>
             <tbody>
               {pageEvents.map((ev) => (
-                <tr key={ev.id} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
+                <tr
+                  key={ev.id}
+                  className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors"
+                >
                   <td className="py-1.5 pr-4 text-gray-200 max-w-xs truncate">{ev.place}</td>
-                  <td className="py-1.5 pr-4 text-right font-semibold text-orange-400">{ev.magnitude.toFixed(1)}</td>
-                  <td className="py-1.5 pr-4 text-right text-gray-300">{ev.depth_km.toFixed(1)}</td>
+                  <td className="py-1.5 pr-4 text-right font-semibold text-orange-400">
+                    {ev.magnitude.toFixed(1)}
+                  </td>
+                  <td className="py-1.5 pr-4 text-right text-gray-300">
+                    {ev.depth_km.toFixed(1)}
+                  </td>
                   <td className="py-1.5 pr-4 text-right text-gray-400 text-xs whitespace-nowrap">
                     {new Date(ev.main_time).toUTCString().replace(' GMT', ' UTC')}
                   </td>
                   <td className="py-1.5 pr-4 text-right">
                     <span
                       className="px-2 py-0.5 rounded text-xs font-medium"
-                      style={{ backgroundColor: ALERT_COLORS[ev.alert_level.toLowerCase()] + '33', color: ALERT_COLORS[ev.alert_level.toLowerCase()] }}
+                      style={{
+                        backgroundColor:
+                          ALERT_COLORS[ev.alert_level.toLowerCase()] + '33',
+                        color: ALERT_COLORS[ev.alert_level.toLowerCase()],
+                      }}
                     >
                       {ev.alert_level}
                     </span>
@@ -252,7 +305,8 @@ export default function AnalyticsPage() {
         <div className="flex items-center justify-between mt-3 text-sm text-gray-400">
           <span>
             Showing {filteredEvents.length === 0 ? 0 : currentPage * PAGE_SIZE + 1}–
-            {Math.min((currentPage + 1) * PAGE_SIZE, filteredEvents.length)} of {filteredEvents.length}
+            {Math.min((currentPage + 1) * PAGE_SIZE, filteredEvents.length)} of{' '}
+            {filteredEvents.length}
           </span>
           <div className="flex gap-2">
             <button

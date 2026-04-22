@@ -1,10 +1,12 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, NavLink } from 'react-router-dom'
 import FilterSidebar from './components/layout/FilterSidebar'
-import AnalyticsPage from './pages/AnalyticsPage'
-import MapPage from './pages/MapPage'
-import TimelinePage from './pages/TimelinePage'
-import TimeSeriesPage from './pages/TimeSeriesPage'
-import ChatPage from './pages/ChatPage'
+
+const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'))
+const MapPage = lazy(() => import('./pages/MapPage'))
+const TimelinePage = lazy(() => import('./pages/TimelinePage'))
+const TimeSeriesPage = lazy(() => import('./pages/TimeSeriesPage'))
+const ChatPage = lazy(() => import('./pages/ChatPage'))
 
 const tabs = [
   { label: 'Analytics', to: '/' },
@@ -13,6 +15,14 @@ const tabs = [
   { label: 'Time Series', to: '/timeseries' },
   { label: 'Chat', to: '/chat' },
 ]
+
+function PageSpinner() {
+  return (
+    <div className="flex items-center justify-center h-48">
+      <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+}
 
 export default function App() {
   return (
@@ -40,13 +50,15 @@ export default function App() {
         </nav>
         {/* Main content */}
         <main className="flex-1 overflow-auto p-4">
-          <Routes>
-            <Route path="/" element={<AnalyticsPage />} />
-            <Route path="/map" element={<MapPage />} />
-            <Route path="/timeline" element={<TimelinePage />} />
-            <Route path="/timeseries" element={<TimeSeriesPage />} />
-            <Route path="/chat" element={<ChatPage />} />
-          </Routes>
+          <Suspense fallback={<PageSpinner />}>
+            <Routes>
+              <Route path="/" element={<AnalyticsPage />} />
+              <Route path="/map" element={<MapPage />} />
+              <Route path="/timeline" element={<TimelinePage />} />
+              <Route path="/timeseries" element={<TimeSeriesPage />} />
+              <Route path="/chat" element={<ChatPage />} />
+            </Routes>
+          </Suspense>
         </main>
       </div>
     </div>
