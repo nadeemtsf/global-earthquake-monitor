@@ -1,17 +1,12 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useFilterStore, type FilterState } from '../../store/filterStore'
+import { useAvailableCountries } from '../../hooks/useAvailableCountries'
 
 const ALERT_LEVELS = ['Green', 'Yellow', 'Orange', 'Red']
 
-const COMMON_COUNTRIES = [
-  'United States', 'Japan', 'Indonesia', 'China', 'Turkey',
-  'Mexico', 'Italy', 'Greece', 'Chile', 'Peru',
-  'Iran', 'New Zealand', 'Philippines', 'India', 'Pakistan',
-  'Afghanistan', 'Nepal', 'Papua New Guinea', 'Tonga', 'Vanuatu',
-]
-
 export default function FilterSidebar() {
   const store = useFilterStore()
+  const { countries: availableCountries, isLoading: countriesLoading } = useAvailableCountries()
 
   const [localSource, setLocalSource] = useState<FilterState['source']>(store.source)
   const [localStart, setLocalStart] = useState(store.startDate ?? '')
@@ -33,9 +28,12 @@ export default function FilterSidebar() {
     )
   }
 
-  const filteredCountries = COMMON_COUNTRIES.filter((c) =>
-    c.toLowerCase().includes(countrySearch.toLowerCase())
-  )
+  const displayCountries = useMemo(() => {
+    const merged = new Set([...availableCountries, ...localCountries])
+    return [...merged]
+      .sort((a, b) => a.localeCompare(b))
+      .filter((c) => c.toLowerCase().includes(countrySearch.toLowerCase()))
+  }, [availableCountries, localCountries, countrySearch])
 
   function applyFilters() {
     store.applyFilters({
@@ -135,25 +133,41 @@ export default function FilterSidebar() {
           className="w-full bg-gray-700 text-white rounded px-2 py-1.5 text-xs border border-gray-600 focus:outline-none focus:border-blue-500 placeholder-gray-500 mb-2"
         />
         <div className="max-h-36 overflow-y-auto space-y-1 pr-1">
-          {filteredCountries.map((country) => (
-            <label key={country} className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={localCountries.includes(country)}
-                onChange={() => toggleCountry(country)}
-                className="accent-blue-500 shrink-0"
-              />
-              <span className="text-xs text-gray-300">{country}</span>
-            </label>
-          ))}
+          {countriesLoading ? (
+            <p className="text-xs text-gray-500">Loading countries...</p>
+          ) : displayCountries.length === 0 ? (
+            <p className="text-xs text-gray-500">No countries found</p>
+          ) : (
+            displayCountries.map((country) => (
+              <label key={country} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={localCountries.includes(country)}
+                  onChange={() => toggleCountry(country)}
+                  className="accent-blue-500 shrink-0"
+                />
+                <span className="text-xs text-gray-300">{country}</span>
+              </label>
+            ))
+          )}
         </div>
-        {localCountries.length > 0 && (
-          <button
-            onClick={() => setLocalCountries([])}
-            className="mt-2 text-xs text-gray-500 hover:text-red-400 transition-colors"
-          >
-            Clear countries
-          </button>
+        {!countriesLoading && displayCountries.length > 0 && (
+          <div className="mt-2 flex gap-2">
+            <button
+              onClick={() => setLocalCountries([...new Set([...localCountries, ...displayCountries])])}
+              className="text-xs text-gray-500 hover:text-blue-400 transition-colors"
+            >
+              Select all
+            </button>
+            {localCountries.length > 0 && (
+              <button
+                onClick={() => setLocalCountries([])}
+                className="text-xs text-gray-500 hover:text-red-400 transition-colors"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
         )}
       </div>
 

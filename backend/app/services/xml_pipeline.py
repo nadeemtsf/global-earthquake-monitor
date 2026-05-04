@@ -297,6 +297,10 @@ class XMLPipelineService:
             raw_xml = await self.fetch_raw_xml(source, params)
             canonical_xml = self.apply_xslt(raw_xml, source)
             events = self.parse_canonical_xml(canonical_xml)
+            events = [
+                e for e in events
+                if e.place and e.magnitude > 0
+            ]
             events.sort(key=lambda e: e.main_time, reverse=True)
             _events_cache[key] = events
             logger.info("Events cache STORED for %s (%d events)", source, len(events))
